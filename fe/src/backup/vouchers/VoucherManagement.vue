@@ -119,7 +119,7 @@ import {
   filterUsableVouchers as fetchUsableVouchers,
   filterUsedOutVouchers as fetchUsedOutVouchers,
   deleteVoucher as deleteVoucherAPI,
-} from '@/services/modules/voucher.api';
+} from '@/backup/voucher.api';
 import VoucherCreate from './VoucherCreate.vue';
 import VoucherUpdate from './VoucherUpdate.vue';
 import VoucherDetail from './VoucherDetail.vue'; 

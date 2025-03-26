@@ -2,7 +2,7 @@
   <div v-if="show" class="modal-overlay" @click.self="close">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Cập nhật Nhà cung cấp</h2>
+        <h2>Cập nhật danh mục</h2>
         <button @click="close" class="modal-close-btn">
           <i class="fas fa-times"></i>
         </button>
@@ -26,8 +26,9 @@
           <button type="button" @click="close" class="cancel-btn">
             Hủy
           </button>
-          <button type="submit" class="save-btn">
+          <button type="submit" class="save-btn" :disabled="isSubmitting">
             <i class="fas fa-save mr-2"></i> Cập nhật
+            <i v-if="isSubmitting" class="fas fa-spinner fa-spin ml-2"></i>
           </button>
         </div>
       </form>
@@ -37,6 +38,9 @@
 
 <script setup>
 import { ref, watch, defineProps, defineEmits } from 'vue';
+import { updateCategoryApi } from '@/services/modules/category.api';
+
+const isSubmitting = ref(false);
 
 // Props và Emits
 const props = defineProps({
@@ -56,34 +60,45 @@ const emit = defineEmits(['close', 'updateCategory']);
 const formData = ref({
   id: null,
   name: '',
-  contactPerson: '',
-  phone: '',
-  email: '',
-  address: '',
 });
 
 // Theo dõi props.category để cập nhật formData
-watch(() => props.category, (newStaff) => {
-  if (newStaff) {
-    formData.value = {
-      id: newStaff.id || null,
-      name: newStaff.name || ''
-    };
-  } else {
-    formData.value = {
-      id: null,
-      name: ''
-    };
-  }
-}, { immediate: true });
+watch(
+  () => props.category,
+  (newCategory) => {
+    if (newCategory && Object.keys(newCategory).length > 0) {
+      formData.value = {
+        id: newCategory.id || null,
+        name: newCategory.name || '',
+      };
+    } else {
+      formData.value = {
+        id: null,
+        name: '',
+      };
+    }
+  },
+  { immediate: true }
+);
 
 // Xử lý submit
-const handleUpdate = () => {
-  const updatedData = {
-    id: formData.value.id,
-    name: formData.value.name,
-  };
-  emit('updateCategory', updatedData);
+const handleUpdate = async () => {
+  isSubmitting.value = true;
+  try {
+    const updatedData = {
+      id: formData.value.id,
+      name: formData.value.name,
+    };
+    await updateCategoryApi(updatedData);
+    emit('updateCategory', updatedData);
+    alert('Cập nhật danh mục thành công!');
+    close();
+  } catch (error) {
+    console.error('Lỗi khi cập nhật danh mục:', error);
+    alert('Cập nhật danh mục thất bại!');
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 // Đóng modal
@@ -93,10 +108,6 @@ const close = () => {
 </script>
 
 <style scoped>
-i {
-  margin-right: 8px;
-}
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -123,7 +134,7 @@ i {
 }
 
 .modal-header {
-  background: #f39c12;
+  background: #007bff;
   padding: 20px;
   border-radius: 12px 12px 0 0;
   display: flex;
@@ -154,10 +165,15 @@ i {
 
 .modal-body {
   padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-label {
@@ -166,15 +182,15 @@ i {
   color: #2c3e50;
   font-weight: 600;
   font-size: 15px;
-  margin-bottom: 8px;
 }
 
 .form-label i {
   color: #3498db;
+  margin-right: 8px;
 }
 
 .form-input {
-  width: 90%;
+  width: 100%;
   padding: 12px;
   border: 1px solid #dfe6e9;
   border-radius: 8px;
@@ -188,7 +204,6 @@ i {
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.2);
 }
 
-/* Modal Footer */
 .modal-footer {
   display: flex;
   gap: 15px;
@@ -211,7 +226,7 @@ i {
 }
 
 .save-btn {
-  background: #27ae60;
+  background: #007bff;
   color: white;
   border: none;
   padding: 12px 20px;
@@ -224,7 +239,12 @@ i {
 }
 
 .save-btn:hover {
-  background: #219653;
+  background: #0056b3;
+}
+
+.save-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
 }
 
 @keyframes slideIn {

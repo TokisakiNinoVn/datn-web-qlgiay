@@ -56,7 +56,7 @@
 
 <script>
 import { ref } from 'vue';
-import { updateVoucher } from '@/services/modules/voucher.api';
+import { updateVoucher } from '@/backup/voucher.api';
 
 export default {
   props: {

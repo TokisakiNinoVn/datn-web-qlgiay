@@ -91,7 +91,7 @@
 
 <script setup>
 import { ref, onBeforeMount } from 'vue';
-import { getAll } from '@/services/modules/order.api';
+import { getAll } from '@/backup/order.api';
 import Navbar from '@/components/NavbarComponent.vue';
 // import { useRouter } from 'vue-router';
 

@@ -25,6 +25,13 @@
             <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
           </button>
         </div>
+        <div v-if="roleUser.code === 'admin'" class="filter-item">
+          <label class="filter-label">Kho hàng</label>
+          <select v-model="selectedWarehouseId" @change="applyFilters" class="filter-select">
+            <option :value="null">Tất cả</option>
+            <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
+          </select>
+        </div>
       </div>
 
       <!-- Supplier Table -->
@@ -34,7 +41,6 @@
             <div class="table-cell">STT</div>
             <div class="table-cell">Tên nhà cung cấp</div>
             <div class="table-cell">Địa chỉ</div>
-            <!-- <div class="table-cell">Email</div> -->
             <div class="table-cell">Số điện thoại</div>
             <div class="table-cell">Hành động</div>
           </div>
@@ -46,22 +52,23 @@
             <div class="table-cell">{{ index + 1 }}</div>
             <div class="table-cell">{{ supplier.name }}</div>
             <div class="table-cell">{{ supplier.address }}</div>
-            <!-- <div class="table-cell">{{ supplier.email }}</div> -->
             <div class="table-cell">{{ supplier.phone }}</div>
             <div class="table-cell action-cell">
-              <button @click.stop="viewSupplier(supplier)" class="action-btn view-btn">
-                <i class="fa-solid fa-eye"></i>
+              <button @click.stop="viewSupplier(supplier)" class="action-btn view-btn" title="Xem chi tiết">
+                <i class="fas fa-eye"></i>
               </button>
-              <button @click.stop="showUpdateForm(supplier)" class="action-btn edit-btn">
-                <i class="fa-solid fa-pencil"></i>
+              <button @click.stop="showUpdateForm(supplier)" class="action-btn edit-btn" title="Chỉnh sửa">
+                <i class="fas fa-pencil-alt"></i>
               </button>
-              <button @click.stop="removeSupplier(supplier.id)" class="action-btn delete-btn">
-                <i class="fa-solid fa-trash"></i>
+              <button @click.stop="removeSupplier(supplier.id)" class="action-btn delete-btn" title="Xóa">
+                <i class="fas fa-trash"></i>
               </button>
             </div>
           </div>
         </div>
-        <div v-if="isMiniLoading" class="loading">Đang tải...</div>
+        <div v-if="isMiniLoading" class="loading">
+          <i class="fas fa-spinner fa-spin"></i> Đang tải...
+        </div>
         <div v-if="!isMiniLoading && filteredSuppliers.length === 0" class="no-results">
           Không tìm thấy nhà cung cấp nào.
         </div>
@@ -88,11 +95,15 @@ import SupplierAdd from './AddSupplier.vue';
 import SupplierUpdate from './UpdateSupplier.vue';
 import {
   getAllSupplierApi,
-  addSupplierApi,
+  // addSupplierApi,
   updateSupplierApi,
   deleteSupplierApi
 } from '@/services/modules/supplier.api';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const warehouses = ref([]);
+const selectedWarehouseId = ref(null);
 const suppliers = ref([]);
 const isMiniLoading = ref(false);
 const searchQuery = ref('');
@@ -105,6 +116,9 @@ const idAdminLogin = ref(null);
 
 onBeforeMount(() => {
   fetchSuppliers();
+  if (roleUser.code === 'admin') {
+    fetchWarehouse();
+  }
   const userInfor = localStorage.getItem('user');
   if (userInfor) {
     const user = JSON.parse(userInfor);
@@ -129,12 +143,39 @@ const fetchSuppliers = async () => {
   }
 };
 
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    if (Array.isArray(response.data.data)) {
+      warehouses.value = response.data.data;
+    } else {
+      throw new Error('Dữ liệu kho không phải là một mảng');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách kho:', error);
+    warehouses.value = [];
+  }
+};
+
 const filteredSuppliers = computed(() => {
-  const query = searchQuery.value.toLowerCase();
-  return suppliers.value.filter(supplier =>
-    supplier.name.toLowerCase().includes(query)
-  );
+  let filtered = suppliers.value;
+  const query = searchQuery.value.toLowerCase().trim();
+  if (query) {
+    filtered = filtered.filter(supplier =>
+      supplier.name.toLowerCase().includes(query)
+    );
+  }
+  if (roleUser.code === 'admin' && selectedWarehouseId.value) {
+    filtered = filtered.filter(supplier =>
+      supplier.warehouse_id === selectedWarehouseId.value
+    );
+  }
+  return filtered;
 });
+
+const applyFilters = () => {
+  fetchSuppliers(); // Tải lại dữ liệu khi thay đổi bộ lọc
+};
 
 const showAddForm = () => {
   showAddModal.value = true;
@@ -144,26 +185,19 @@ const closeAddModal = () => {
   showAddModal.value = false;
 };
 
-const closeUpdateModal = () => {
-  showUpdateModal.value = false;
-};
-
-const addSupplier = async (supplierData) => {
-  try {
-    supplierData.idAdmin = idAdminLogin.value;
-    await addSupplierApi(supplierData);
-    alert('Thêm nhà cung cấp thành công!');
-    fetchSuppliers();
-    closeAddModal();
-  } catch (error) {
-    console.error('Error adding supplier:', error);
-    alert('Có lỗi xảy ra khi thêm nhà cung cấp.');
-  }
+const addSupplier = (newSupplier) => {
+  suppliers.value.push(newSupplier);
+  closeAddModal();
 };
 
 const showUpdateForm = (supplier) => {
   selectedSupplier.value = { ...supplier };
   showUpdateModal.value = true;
+};
+
+const closeUpdateModal = () => {
+  showUpdateModal.value = false;
+  selectedSupplier.value = null;
 };
 
 const updateSupplier = async (updatedSupplier) => {
@@ -180,12 +214,11 @@ const updateSupplier = async (updatedSupplier) => {
 };
 
 const removeSupplier = async (id) => {
-  const confirmDelete = confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?');
-  if (confirmDelete) {
+  if (confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?')) {
     try {
       await deleteSupplierApi(id);
-      alert('Nhà cung cấp đã được xóa!');
-      fetchSuppliers();
+      suppliers.value = suppliers.value.filter(s => s.id !== id);
+      alert('Xóa nhà cung cấp thành công!');
     } catch (error) {
       console.error('Error removing supplier:', error);
       alert('Có lỗi xảy ra khi xóa nhà cung cấp.');
@@ -205,58 +238,55 @@ const closeDetail = () => {
 </script>
 
 <style scoped>
-/* General Styles */
 .container {
-  display: flex;
   min-height: 100vh;
-  background: #f0f2f5;
+  background: #f4f6f9;
+  display: flex;
 }
 
 .main-content {
-  flex: 1;
-  margin-left: 260px;
-  padding: 30px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  padding: 2rem;
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px 15px;
-  border-bottom: 1px solid #e8ecef;
-  margin-bottom: 25px;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
 }
 
 .title {
-  color: #2c3e50;
-  font-size: 30px;
+  font-size: 2rem;
+  color: #fff;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  margin: 0;
 }
 
 .stats {
-  color: #7f8c8d;
-  font-size: 16px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
-/* Controls */
 .controls {
-  background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .search-add {
   display: flex;
-  gap: 20px;
-  align-items: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  flex: 1;
 }
 
 .search-wrapper {
@@ -267,140 +297,163 @@ const closeDetail = () => {
 
 .search-icon {
   position: absolute;
-  left: 12px;
   top: 50%;
+  left: 10px;
   transform: translateY(-50%);
-  color: #95a5a6;
+  color: #6c757d;
 }
 
 .search-input {
-  width: 90%;
-  padding: 12px 12px 12px 40px;
-  border: 1px solid #dfe6e9;
+  width: 80%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 15px;
-  transition: border-color 0.3s;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
 }
 
 .search-input:focus {
-  border-color: #3498db;
+  border-color: #007bff;
   outline: none;
 }
 
 .add-btn {
-  background: #27ae60;
+  padding: 0.75rem 1.5rem;
+  background: #28a745;
   color: white;
-  padding: 12px 24px;
+  border: none;
   border-radius: 8px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: background 0.3s;
+  gap: 0.5rem;
+  transition: background 0.3s ease;
 }
 
 .add-btn:hover {
-  background: #219653;
+  background: #218838;
 }
 
-/* Table Styles */
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-label {
+  font-size: 1rem;
+  color: #343a40;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.filter-select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
 .supplier-table-wrapper {
-  background: white;
+  background: #fff;
+  padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
-  margin: 20px 0;
-  overflow-x: auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .table-grid {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr 1fr 220px;
-  gap: 1px;
-  background: #e8ecef;
+  grid-template-columns: 1fr 2fr 3fr 2fr 2fr;
+  gap: 1rem;
 }
 
 .table-header {
   display: contents;
 }
 
+.table-header .table-cell {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #343a40;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #ddd;
+}
+
 .table-row {
   display: contents;
 }
 
-.table-cell {
-  background: white;
-  padding: 15px;
-  color: #636e72;
-  font-size: 14px;
-  border-bottom: 1px solid #e8ecef;
-}
-
-.table-header .table-cell {
-  background: #f8f9fa;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 15px;
-  border-bottom: 2px solid #e8ecef;
-}
-
 .table-row:hover .table-cell {
-  background: #f8f9fa;
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  background: #f1f3f5;
+}
+
+.table-cell {
+  padding: 1rem;
+  font-size: 1rem;
+  color: #343a40;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .action-cell {
   display: flex;
-  gap: 10px;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .action-btn {
-  padding: 8px;
+  padding: 0.5rem;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.3s;
-  flex: 1;
+  transition: background 0.3s ease;
 }
 
-.action-btn.view-btn {
-  background: #3498db;
+.view-btn {
+  background: #17a2b8;
   color: white;
 }
 
-.action-btn.view-btn:hover {
-  background: #2980b9;
+.view-btn:hover {
+  background: #138496;
 }
 
-.action-btn.edit-btn {
-  background: #f39c12;
+.edit-btn {
+  background: #ffc107;
+  color: #343a40;
+}
+
+.edit-btn:hover {
+  background: #e0a800;
+}
+
+.delete-btn {
+  background: #dc3545;
   color: white;
 }
 
-.action-btn.edit-btn:hover {
-  background: #e08e0b;
-}
-
-.action-btn.delete-btn {
-  background: #e74c3c;
-  color: white;
-}
-
-.action-btn.delete-btn:hover {
-  background: #c0392b;
+.delete-btn:hover {
+  background: #c82333;
 }
 
 .loading {
   text-align: center;
-  padding: 20px;
-  color: #7f8c8d;
+  padding: 2rem;
+  font-size: 1.25rem;
+  color: #6c757d;
 }
 
 .no-results {
   text-align: center;
-  padding: 20px;
-  color: #7f8c8d;
+  padding: 2rem;
+  font-size: 1.25rem;
+  color: #6c757d;
 }
 </style>

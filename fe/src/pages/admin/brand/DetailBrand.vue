@@ -15,10 +15,14 @@
               <td class="value">{{ brand.id }}</td>
             </tr> -->
             <tr>
-              <td class="label">Tên danh mục</td>
+              <td class="label">Tên thương hiệu</td>
               <td class="value">{{ brand.name }}</td>
             </tr>
             <tr>
+              <td class="label">Số lượng sản phẩm</td>
+              <td class="value">{{ brand.total_products }}</td>
+            </tr>
+            <!-- <tr>
               <td class="label">Người liên hệ</td>
               <td class="value">{{ brand.contact_person }}</td>
             </tr>
@@ -33,7 +37,7 @@
             <tr>
               <td class="label">Địa chỉ</td>
               <td class="value">{{ brand.address }}</td>
-            </tr>
+            </tr> -->
             <tr>
               <td class="label">Ngày tạo</td>
               <td class="value">{{ formatDate(brand.createdAt) }}</td>

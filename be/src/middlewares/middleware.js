@@ -20,7 +20,6 @@ exports.authorizeRole = (role) => {
 exports.authenticate = (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    // console.log(req.headers); //undefined
     if (!authHeader) {
       return res.status(401).json({
         code: 401,
@@ -43,12 +42,13 @@ exports.authenticate = (req, res, next) => {
       if (err) {
         return res.status(403).json({
           code: 403,
-          error: 'Invalid or expired token'
+          error: 'Hết phiên đăng nhập!'
         });
       }
 
       // Lưu thông tin đã giải mã vào `req` để sử dụng ở các middleware/controller sau
       req.user = decoded;
+      // console.log('req.user:', req.user);
       next();
     });
   } catch (error) {

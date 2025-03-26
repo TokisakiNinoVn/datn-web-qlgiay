@@ -36,30 +36,32 @@
           />
         </div>
 
-        <div class="form-group flex gap-4">
-          <div class="flex-1">
-            <label for="contactPerson" class="form-label">
+        <div class="form-group flex-container">
+          <div class="flex-item">
+            <label for="contact_person" class="form-label">
               <i class="fas fa-user mr-2"></i> Người liên hệ
             </label>
             <input
-              v-model="formData.contactPerson"
+              v-model="formData.contact_person"
               type="text"
-              id="contactPerson"
+              id="contact_person"
               placeholder="Tên người liên hệ"
               class="form-input"
               required
             />
           </div>
-          <div class="flex-1">
+          <div class="flex-item">
             <label for="phone" class="form-label">
               <i class="fas fa-phone mr-2"></i> Số điện thoại
             </label>
             <input
               v-model="formData.phone"
-              type="text"
+              type="tel"
               id="phone"
               placeholder="Nhập số điện thoại"
               class="form-input"
+              pattern="[0-9]{10,11}"
+              title="Số điện thoại phải có 10-11 chữ số"
               required
             />
           </div>
@@ -79,12 +81,25 @@
           />
         </div>
 
+        <div class="form-group" v-if="roleUser.code === 'admin'">
+          <label for="warehouse" class="form-label">
+            <i class="fas fa-warehouse mr-2"></i> Chọn kho
+          </label>
+          <select v-model="formData.warehouse_id" id="warehouse" class="form-select" required>
+            <option value="" disabled>Chọn kho</option>
+            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+              {{ warehouse.name }}
+            </option>
+          </select>
+        </div>
+
         <div class="modal-footer">
           <button type="button" @click="close" class="cancel-btn">
             Hủy
           </button>
-          <button type="submit" class="save-btn">
+          <button type="submit" class="save-btn" :disabled="isSubmitting">
             <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
+            <i v-if="isSubmitting" class="fas fa-spinner fa-spin ml-2"></i>
           </button>
         </div>
       </form>
@@ -93,9 +108,14 @@
 </template>
 
 <script setup>
-// import { ref, onMounted } from 'vue';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { defineProps, defineEmits } from 'vue';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import { addSupplierApi } from '@/services/modules/supplier.api';
+
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const warehouses = ref([]);
+const isSubmitting = ref(false);
 
 // Props và Emits
 // eslint-disable-next-line no-unused-vars
@@ -112,15 +132,46 @@ const emit = defineEmits(['close', 'addSupplier']);
 const formData = ref({
   name: '',
   address: '',
-  contactPerson: '',
+  contact_person: '',
   phone: '',
   email: '',
+  warehouse_id: '',
 });
 
+// Lấy danh sách kho
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    if (Array.isArray(response.data.data)) {
+      warehouses.value = response.data.data;
+    } else {
+      throw new Error('Dữ liệu kho không phải là một mảng');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách kho:', error);
+    warehouses.value = [];
+  }
+};
+
 // Xử lý submit
-const handleAdd = () => {
-  emit('addSupplier', { ...formData.value });
-  resetForm();
+const handleAdd = async () => {
+  isSubmitting.value = true;
+  try {
+    const supplierData = { ...formData.value };
+    if (roleUser.code !== 'admin') {
+      delete supplierData.warehouse_id; // Xóa warehouse_id nếu không phải admin
+    }
+    const response = await addSupplierApi(supplierData);
+    emit('addSupplier', response.data); // Giả sử API trả về dữ liệu nhà cung cấp vừa thêm
+    alert('Thêm nhà cung cấp thành công!');
+    resetForm();
+    close();
+  } catch (error) {
+    console.error('Lỗi khi thêm nhà cung cấp:', error);
+    alert('Thêm nhà cung cấp thất bại!');
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 // Reset form sau khi submit
@@ -128,9 +179,10 @@ const resetForm = () => {
   formData.value = {
     name: '',
     address: '',
-    contactPerson: '',
+    contact_person: '',
     phone: '',
     email: '',
+    warehouse_id: '',
   };
 };
 
@@ -138,13 +190,16 @@ const resetForm = () => {
 const close = () => {
   emit('close');
 };
+
+// Khởi tạo dữ liệu khi mounted
+onMounted(() => {
+  if (roleUser.code === 'admin') {
+    fetchWarehouse();
+  }
+});
 </script>
 
 <style scoped>
-i {
-  margin-right: 8px;
-}
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -171,7 +226,7 @@ i {
 }
 
 .modal-header {
-  background: #27ae60;
+  background: #28a745;
   padding: 20px;
   border-radius: 12px 12px 0 0;
   display: flex;
@@ -202,10 +257,26 @@ i {
 
 .modal-body {
   padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flex-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.flex-item {
+  flex: 1;
+  min-width: 200px;
 }
 
 .form-label {
@@ -214,14 +285,15 @@ i {
   color: #2c3e50;
   font-weight: 600;
   font-size: 15px;
-  margin-bottom: 8px;
 }
 
 .form-label i {
   color: #3498db;
+  margin-right: 8px;
 }
 
-.form-input {
+.form-input,
+.form-select {
   width: 90%;
   padding: 12px;
   border: 1px solid #dfe6e9;
@@ -230,13 +302,13 @@ i {
   transition: border-color 0.3s;
 }
 
-.form-input:focus {
+.form-input:focus,
+.form-select:focus {
   border-color: #3498db;
   outline: none;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.2);
 }
 
-/* Modal Footer */
 .modal-footer {
   display: flex;
   gap: 15px;
@@ -259,7 +331,7 @@ i {
 }
 
 .save-btn {
-  background: #27ae60;
+  background: #28a745;
   color: white;
   border: none;
   padding: 12px 20px;
@@ -272,7 +344,12 @@ i {
 }
 
 .save-btn:hover {
-  background: #219653;
+  background: #218838;
+}
+
+.save-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
 }
 
 @keyframes slideIn {

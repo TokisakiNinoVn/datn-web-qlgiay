@@ -1,27 +1,16 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="close">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2 class="modal-title">Cập nhật thông tin Người dùng</h2>
-        <button @click="close" class="close-btn">
+  <div class="container">
+    <Navbar />
+    <div class="main-content">
+      <div class="header">
+        <h2 class="title">Cập nhật thông tin người dùng</h2>
+        <router-link to="/user-management" class="close-btn">
           <i class="fas fa-times"></i>
-        </button>
+        </router-link>
       </div>
 
       <form @submit.prevent="handleUpdate" class="form-container">
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-id-badge mr-2"></i> ID
-            </label>
-            <input
-              v-model="formData.id"
-              type="text"
-              class="form-input"
-              disabled
-            />
-          </div>
-
           <div class="form-group">
             <label class="form-label">
               <i class="fas fa-user mr-2"></i> Họ và tên
@@ -44,13 +33,12 @@
               type="email"
               placeholder="Nhập email"
               class="form-input"
-              required
             />
           </div>
 
           <div class="form-group">
             <label class="form-label">
-              <i class="fas fa-phone mr-2"></i> Điện thoại
+              <i class="fas fa-phone mr-2"></i> Số điện thoại
             </label>
             <input
               v-model="formData.phone"
@@ -61,12 +49,24 @@
             />
           </div>
 
+          <!-- <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-lock mr-2"></i> Mật khẩu
+            </label>
+            <input
+              v-model="formData.password"
+              type="password"
+              placeholder="Nhập mật khẩu mới (nếu muốn thay đổi)"
+              class="form-input"
+            />
+          </div> -->
+
           <div class="form-group">
             <label class="form-label">
               <i class="fas fa-venus-mars mr-2"></i> Giới tính
             </label>
-            <select v-model="formData.gender" class="form-input">
-              <option :value="null">Chưa cập nhật</option>
+            <select v-model="formData.gender" class="form-select">
+              <option :value="null">Chưa chọn</option>
               <option value="Nam">Nam</option>
               <option value="Nữ">Nữ</option>
               <option value="Khác">Khác</option>
@@ -75,13 +75,37 @@
 
           <div class="form-group">
             <label class="form-label">
-              <i class="fas fa-user-tag mr-2"></i> Chức vụ
+              <i class="fas fa-user-tag mr-2"></i> Vai trò
             </label>
-            <select v-model="formData.role_code" class="form-input">
-              <option value="admin">Quản trị viên</option>
-              <option value="manager">Quản lý kho</option>
-              <option value="staff">Nhân viên</option>
+            <select v-model="formData.role" class="form-select" required @change="handleRoleChange">
+              <option value="" disabled>Chọn vai trò</option>
+              <option v-if="roleUser.code === 'admin'" value="Quản trị viên">Quản trị viên</option>
+              <option v-if="roleUser.code === 'admin'" value="Quản lý kho">Quản lý kho</option>
+              <option value="Nhân viên kho">Nhân viên kho</option>
             </select>
+          </div>
+
+          <div class="form-group" v-if="shouldShowWarehouse && roleUser.code === 'admin'">
+            <label class="form-label">
+              <i class="fas fa-warehouse mr-2"></i> Chọn kho làm việc
+            </label>
+            <select v-model="formData.warehouse_id" class="form-select" required>
+              <option value="" disabled>Chọn kho làm việc</option>
+              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                {{ warehouse.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group" v-else>
+            <label class="form-label">
+              <i class="fas fa-warehouse mr-2"></i> Kho
+            </label>
+            <input
+              type="text"
+              class="form-input"
+              :value="warehouseName"
+              disabled
+            />
           </div>
 
           <div class="form-group full-width">
@@ -100,19 +124,18 @@
             <label class="form-label">
               <i class="fas fa-sticky-note mr-2"></i> Ghi chú
             </label>
-            <input
+            <textarea
               v-model="formData.note"
-              type="text"
-              placeholder="Nhập ghi chú"
-              class="form-input"
-            />
+              placeholder="Nhập ghi chú (không bắt buộc)"
+              class="form-input textarea"
+            ></textarea>
           </div>
         </div>
 
         <div class="form-actions">
-          <button type="button" @click="close" class="cancel-btn">
+          <router-link to="/management-user" class="cancel-btn">
             <i class="fas fa-times mr-2"></i> Hủy
-          </button>
+          </router-link>
           <button type="submit" class="submit-btn">
             <i class="fas fa-save mr-2"></i> Cập nhật
           </button>
@@ -123,224 +146,233 @@
 </template>
 
 <script setup>
-import { ref, watch, defineProps, defineEmits } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import Navbar from '@/components/NavbarComponent.vue';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import { getUserByIdApi, updateUserApi } from '@/services/modules/user.api';
 
-const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false,
-  },
-  user: {
-    type: Object,
-    default: () => ({}),
-  },
-});
-
-const emit = defineEmits(['close', 'updateCustomer']);
+const route = useRoute();
+const router = useRouter();
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const dataUser = JSON.parse(localStorage.getItem('user')) || {};
+const userId = route.params.id;
 
 const formData = ref({
-  id: null,
   full_name: '',
   phone: '',
   address: '',
   gender: null,
   email: '',
   note: '',
+  role: '',
   role_code: '',
+  warehouse_id: '',
 });
 
-watch(() => props.user, (newUser) => {
-  if (newUser) {
-    formData.value = {
-      id: newUser.id || null,
-      full_name: newUser.full_name || '',
-      phone: newUser.phone || '',
-      address: newUser.address || '',
-      gender: newUser.gender || null,
-      email: newUser.email || '',
-      note: newUser.note || '',
-      role_code: newUser.role_code || '',
-    };
+const warehouses = ref([]);
+
+onMounted(async () => {
+  await fetchWarehouse();
+  await fetchUserData();
+});
+
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    warehouses.value = response.data.data || [];
+  } catch (error) {
+    console.error('Error fetching warehouses:', error);
+    warehouses.value = [];
   }
-}, { immediate: true });
-
-const handleUpdate = () => {
-  const updatedData = {
-    id: formData.value.id,
-    full_name: formData.value.full_name,
-    phone: formData.value.phone,
-    address: formData.value.address,
-    gender: formData.value.gender,
-    email: formData.value.email,
-    note: formData.value.note,
-    role_code: formData.value.role_code,
-  };
-  emit('updateCustomer', updatedData);
 };
 
-const close = () => {
-  emit('close');
+const fetchUserData = async () => {
+  try {
+    const response = await getUserByIdApi(userId);
+    const userData = response.data;
+    formData.value = {
+      full_name: userData.full_name || '',
+      phone: userData.phone || '',
+      address: userData.address || '',
+      gender: userData.gender || null,
+      email: userData.email || '',
+      note: userData.note || '',
+      role: userData.role || 'Nhân viên kho',
+      warehouse_id: userData.warehouse_id || dataUser.warehouses?.[0]?.id || '',
+    };
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+  }
 };
+
+const shouldShowWarehouse = computed(() => 
+  formData.value.role === 'Quản lý kho' || formData.value.role === 'Nhân viên kho'
+);
+
+const handleRoleChange = () => {
+  if (formData.value.role === 'Quản trị viên') {
+    formData.value.warehouse_id = '';
+    formData.value.role_code = 'admin';
+  } else if (formData.value.role === 'Quản lý kho') {
+    formData.value.role_code = 'manager';
+  } else {
+    formData.value.role_code = 'staff';
+  }
+};
+
+const handleUpdate = async () => {
+  try {
+    const updateData = { ...formData.value, id: userId };
+    await updateUserApi(userId, updateData);
+    alert('Cập nhật thông tin người dùng thành công!');
+    router.push('/management-user');
+  } catch (error) {
+    console.error('Error updating user:', error);
+    alert('Cập nhật thông tin thất bại!');
+  }
+};
+
+const warehouseName = computed(() => {
+  const warehouse = warehouses.value.find(w => w.id === formData.value.warehouse_id);
+  return warehouse ? warehouse.name : 'Không xác định';
+});
 </script>
 
 <style scoped>
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+i {
+  font-size: 1rem;
+  margin-right: 0.5rem;
+}
+.container {
+  min-height: 100vh;
+  background: #f4f6f9;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
 }
 
-.modal-container {
-  background: white;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 650px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  animation: slideIn 0.3s ease;
+.main-content {
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  padding: 2rem;
 }
 
-.modal-header {
-  background: #f39c12;
-  padding: 20px;
-  border-radius: 12px 12px 0 0;
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
 }
 
-.modal-title {
-  margin: 0;
-  color: white;
+.title {
   font-size: 1.75rem;
-  font-weight: 600;
+  color: #fff;
+  font-weight: 700;
+  margin: 0;
 }
 
-.modal-close-btn {
+.close-btn {
   background: none;
   border: none;
+  color: #fff;
   font-size: 1.5rem;
   cursor: pointer;
-  color: white;
-  transition: transform 0.3s;
-}
-
-.modal-close-btn:hover {
-  transform: rotate(90deg);
-  color: #ecf0f1;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
 }
 
 .form-container {
-  padding: 25px;
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
-.form-group.full-width {
-  grid-column: span 2;
+.full-width {
+  grid-column: 1 / -1;
 }
 
 .form-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: #555;
+  font-weight: 500;
   display: flex;
   align-items: center;
 }
 
-.form-label i {
-  color: #f39c12;
-  margin-right: 8px;
-}
-
-.form-input {
-  padding: 12px;
-  border: 1px solid #dfe6e9;
+.form-input, .form-select {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
-  transition: border-color 0.3s;
+  transition: border-color 0.3s ease;
 }
 
-.form-input:focus {
-  border-color: #f39c12;
+.form-input:focus, .form-select:focus {
+  border-color: #007bff;
   outline: none;
-  box-shadow: 0 0 5px rgba(243, 156, 18, 0.3);
+}
+
+.textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-input:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
   justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancel-btn, .submit-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: white;
 }
 
 .cancel-btn {
-  background: #ecf0f1;
-  color: #2c3e50;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s;
+  background: #6c757d;
 }
 
 .cancel-btn:hover {
-  background: #dfe6e9;
+  background: #5a6268;
 }
 
 .submit-btn {
-  background: #27ae60;
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s;
+  background: #007bff;
 }
 
 .submit-btn:hover {
-  background: #219653;
-}
-
-@media (min-width: 640px) {
-  .form-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  background: #0056b3;
 }
 </style>

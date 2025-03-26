@@ -26,54 +26,6 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 }
 }).array('file', 10);
 
-// Upload controller
-// exports.uploadFile = async (req, res, next) => {
-//     upload(req, res, async (err) => {
-//         try {
-//             if (!req.files || req.files.length === 0) {
-//                 return res.status(HTTP_STATUS.OK).json({
-//                     data: [],
-//                     message: 'No files uploaded'
-//                 });
-//             }
-
-//             const roomId = req.body.roomId;
-//             if (!roomId) {
-//                 return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'Invalid post ID', 'You must provide a valid post ID.'));
-//             }
-
-//             // Xử lý các file và lưu vào cơ sở dữ liệu
-//             const files = req.files.map(file => {
-//                 const type = file.mimetype.startsWith('image') ? 1 : 2;
-//                 const url = `/uploads/${file.filename}`;
-
-//                 // Thực hiện lưu vào cơ sở dữ liệu
-//                 // const insertQuery = `INSERT INTO files (device_id, url, type, createAt) VALUES (?, ?, ?, NOW())`;
-//                 const insertQuery = `INSERT INTO files (room_id, url, type, createAt) VALUES (?, ?, ?, NOW())`;
-//                 db.pool.execute(insertQuery, [roomId, url, type]);
-
-//                 // Trả về thông tin file và id của bản ghi vừa mới thêm
-//                 res.status(201).json({
-//                     data: {
-//                         id: ,
-//                         url: url,
-//                         type: type
-//                     },
-//                     message: 'File uploaded successfully'
-//                 });
-//             });
-
-//             return res.status(HTTP_STATUS.OK).json({
-//                 data: files
-//             });
-//         } catch (error) {
-//             return next(new AppError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Error uploading files', error.message));
-//         }
-//     });
-// };
-
-
-
 exports.uploadFile = async (req, res, next) => {
     upload(req, res, async (err) => { 
         try {
@@ -99,7 +51,7 @@ exports.uploadFile = async (req, res, next) => {
                 const url = `/uploads/${file.filename}`;
 
                 // Thực hiện lưu vào cơ sở dữ liệu
-                const insertQuery = `INSERT INTO files (room_id, url, type, createAt) VALUES (?, ?, ?, NOW())`;
+                const insertQuery = `INSERT INTO files (room_id, url, type, createdAt) VALUES (?, ?, ?, NOW())`;
                 const [result] = await db.pool.execute(insertQuery, [roomId, url, type]);
 
                 // Thêm thông tin file và id của bản ghi vừa mới thêm vào mảng files
@@ -120,3 +72,47 @@ exports.uploadFile = async (req, res, next) => {
         }
     });
 };
+
+// Upload file - chỉ file, không có thứ khác
+exports.uploadNormal = async (req, res, next) => { 
+    upload(req, res, async (err) => { 
+        try {
+            if (err) {
+                console.log(err);
+                return next(new AppError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'File upload failed', err.message));
+            }
+
+            if (!req.files || req.files.length === 0) {
+                return res.status(HTTP_STATUS.OK).json({
+                    data: [],
+                    message: 'No files uploaded'
+                });
+            }
+
+            const files = [];
+            for (const file of req.files) {
+                const type = file.mimetype.startsWith('image') ? 1 : 2;
+                const url = `/uploads/${file.filename}`;
+
+                // Thực hiện lưu vào cơ sở dữ liệu
+                const insertQuery = `INSERT INTO files (url, type, createdAt) VALUES (?, ?, NOW())`;
+                const [result] = await db.pool.execute(insertQuery, [url, type]);
+
+                // Thêm thông tin file và id của bản ghi vừa mới thêm vào mảng files
+                files.push({
+                    id: result.insertId, // Lấy id của bản ghi vừa thêm
+                    url: url,
+                    type: type
+                });
+            }
+
+            return res.status(200).json({
+                data: files,
+                message: 'Files uploaded successfully'
+            });
+        } catch (error) {
+            console.log(error);
+            return next(new AppError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Error uploading files', error.message));
+        }
+    });
+}

@@ -14,31 +14,9 @@ exports.login = async (req, res, next) => {
       [phone]
     );
 
-    // console.log(rows);
-
     if (rows.length === 0) {
       return next(new AppError(HTTP_STATUS.NOT_FOUND, 'failed', 'Không tìm thấy người dùng', []), req, res, next);
     }
-
-    //check status của admin
-    // if (rows[0].status === '0') {
-    //   return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tài khoản của bạn đã bị khóa', []), req, res, next);
-    // }
-
-    // const idAdmin = rows[0].id;
-    // const insertSql = 'INSERT INTO log_login_admin (id_admin, type, createAt) VALUES (?, ?, NOW())';
-    // await db.pool.execute(insertSql, [idAdmin, 'login']);
-
-    // //lấy name của role
-    // const [rowsRole] = await db.pool.execute(
-    //   'SELECT history_login, history_log, manage_complaint, manage_noti, manage_role, manage_staff, manage_user FROM roles WHERE id = ?',
-    //   [rows[0].role]
-    // );
-
-
-    // if (rows.length === 0) {
-    //   return next(new AppError(HTTP_STATUS.NOT_FOUND, 'failed', 'Không tìm thấy người dùng', []), req, res, next);
-    // }
 
     const user = rows[0];
 
@@ -47,14 +25,44 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ message: 'Mật khẩu không chính xác' });
     }
 
-    // await db.pool.execute(
-    //   'UPDATE admins SET status = ? WHERE id = ?',
-    //   ['online', user.id]
-    // );
-    const token = jwt.sign(
-      { id: user.id, phone: user.phone },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: '1h' }
+    // map role_id (của bảng users) qua bảng roles lấy name và code của quyền
+    const [rowsRole] = await db.pool.execute(`
+      SELECT roles.name, roles.code
+      FROM users
+      JOIN roles ON users.role_id = roles.id
+      WHERE users.id = ?
+    `, [user.id]);
+
+    // map user.id qua bảng warehouse_user lấy warehouse_id
+    const [rowsWarehouse] = await db.pool.execute(`
+      SELECT warehouse_id
+      FROM warehouse_user
+      WHERE user_id = ?
+    `, [user.id]);
+
+    // map warehouse_id qua bảng warehouses lấy name
+    const warehouses = [];
+    for (const row of rowsWarehouse) {
+      const [rowsWarehouseName] = await db.pool.execute(`
+        SELECT id, name
+        FROM warehouses
+        WHERE id = ?
+      `, [row.warehouse_id]);
+      warehouses.push({
+        'id': rowsWarehouseName[0].id,
+        'name': rowsWarehouseName[0].name,
+        // 'code': rowsWarehouseName[0].code,
+      });
+    }
+    
+    const token = jwt.sign({
+      id: user.id,
+      phone: user.phone,
+      role: rowsRole[0].code,
+      // warehouses: warehouses.map(warehouse => warehouse.id)
+      warehouses: warehouses.map(warehouse => warehouse.id)
+    },
+      process.env.JWT_SECRET_KEY, { expiresIn: '7h' }
     );
 
     res.status(200).json({
@@ -63,15 +71,9 @@ exports.login = async (req, res, next) => {
       data: {
         id: user.id,
         phone: user.phone,
-        name: user.name,
-        role: user.role,
-        // email: user.email,
-        // status: user.status,
-        // phone: user.phone,
-        // gender: user.gender,
-        // address: user.address,
-        // updatedAt: user.updatedAt,
-        // roles: rowsRole
+        name: user.full_name,
+        role: rowsRole,
+        warehouses: warehouses
       },
       message: 'Đăng nhập thành công',
     });

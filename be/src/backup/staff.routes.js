@@ -1,7 +1,7 @@
 // user.router.js
 const express = require('express');
 const router = express.Router();
-const { staffController } = require('../../controllers/index');
+const { staffController } = require('../controllers/index');
 
 router.get('/basic', staffController.getAllStaffBasic);
 router.get('/all', staffController.getAllStaff);

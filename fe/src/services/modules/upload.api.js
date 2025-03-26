@@ -6,7 +6,14 @@ const uploadApi = async (formData) => instance.post('/api/private/upload/',
         'Content-Type': 'multipart/form-data',
     },
 });
+const uploadNormalApi = async (formData) => instance.post('/api/private/upload/file', 
+    formData, {
+    headers: {
+        'Content-Type': 'multipart/form-data',
+    },
+});
 
 export {
-    uploadApi
+    uploadApi,
+    uploadNormalApi
 };

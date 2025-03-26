@@ -16,6 +16,9 @@ const removeUserApi = async (id) => instance.delete(`/api/private/user/${id}`);
 const searchApi = async (query) => instance.post('/api/private/user/search', { query });
 
 const filterByRoleApi = async (role) => instance.post('/api/private/user/filter', { role });
+const updateMyInforApi = async (data) => instance.post('/api/private/user/update-my-infor', data);
+
+
 
 export {
   getAllUserWithRoleApi,
@@ -26,5 +29,6 @@ export {
   updateUserApi,
   removeUserApi,
   searchApi,
-  filterByRoleApi
+  filterByRoleApi,
+  updateMyInforApi
 };

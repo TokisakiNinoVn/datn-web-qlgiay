@@ -125,7 +125,7 @@ const selectedManager = ref(null);
 onMounted(async () => {
     try {
         const response = await getAllUserWithRoleApi();
-        managers.value = response.data.filter(user => user.role_code === "manager" || user.role_code === "staff" || user.role_id === 2 || user.role_id === 3);
+        managers.value = response.data.filter(user => user.role_code === "manager");
     } catch (error) {
         console.error("Error fetching managers:", error);
         managers.value = [];
@@ -167,10 +167,10 @@ const hideDropdownWithDelay = () => {
 };
 
 const submitRoom = async () => {
-    if (!warehouse.value.idManager) {
-        alert("Người quản lý không được để trống!");
-        return;
-    }
+    // if (!warehouse.value.idManager) {
+    //     alert("Người quản lý không được để trống!");
+    //     return;
+    // }
     try {
         const payload = {
             name: warehouse.value.name,
@@ -183,13 +183,16 @@ const submitRoom = async () => {
         router.push("/warehouse-management");
     } catch (error) {
         console.error("Lỗi khi thêm kho:", error);
-        alert("Có lỗi xảy ra, vui lòng thử lại!");
+        alert("Lỗi: " + error.response.data.message);
     }
 };
 
 </script>
 
 <style scoped>
+i {
+    margin-right: 0.5rem;
+}
 .modal-overlay {
     position: fixed;
     top: 0;

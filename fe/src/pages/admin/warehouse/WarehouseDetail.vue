@@ -2,7 +2,7 @@
   <div v-if="visible" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>{{ warehouse.name }}</h2>
+        <h2>Chi tiết kho - {{ warehouse.name }}</h2>
         <button @click="closeModal" class="modal-close-btn">
           <i class="fas fa-times"></i>
         </button>
@@ -14,15 +14,20 @@
         </div>
         <div class="detail-item">
           <span class="label">Quản lý:</span>
-          <span>{{ warehouse.manager_info.full_name }}</span>
+          <span v-if="warehouse.manager_info !== null">{{ warehouse.manager_info.full_name }}</span>
+          <span v-else>Chưa có</span>
         </div>
         <div class="detail-item">
           <span class="label">Số điện thoại:</span>
-          <span>{{ warehouse.manager_info.phone }}</span>
+          <span v-if="warehouse.manager_info !== null">{{ warehouse.manager_info.phone }}</span>
+          <span v-else>Chưa có thông tin</span>
+          <!-- <span>{{ warehouse.manager_info. }}</span> -->
         </div>
         <div class="detail-item">
           <span class="label">Email:</span>
-          <span>{{ warehouse.manager_info.email }}</span>
+          <span v-if="warehouse.manager_info !== null">{{ warehouse.manager_info.email }}</span>
+          <span v-else>Chưa có thông tin</span>
+          <!-- <span>{{ warehouse.manager_info. }}</span> -->
         </div>
         <div class="detail-item">
           <span class="label">Mô tả:</span>

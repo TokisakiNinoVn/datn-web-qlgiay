@@ -30,7 +30,7 @@
         <button @click="resetFilters" class="reset-btn">
           <i class="fas fa-sync-alt mr-2"></i> Làm mới
         </button>
-        <button @click="filterByRole('admin')" :class="{ 'active': selectedRole === 'admin' }" class="filter-btn">
+        <button v-if="roleUser.code == 'admin'" @click="filterByRole('admin')" :class="{ 'active': selectedRole === 'admin' }" class="filter-btn">
           <i class="fas fa-user-tie mr-2"></i> Admin
         </button>
         <button @click="filterByRole('manager')" :class="{ 'active': selectedRole === 'manager' }" class="filter-btn">
@@ -39,9 +39,19 @@
         <button @click="filterByRole('staff')" :class="{ 'active': selectedRole === 'staff' }" class="filter-btn">
           <i class="fas fa-user mr-2"></i> Nhân viên kho
         </button>
-        <button @click="showAddForm" class="add-btn">
+        <button v-if="roleUser.code == 'admin'" @click="showAddForm" class="add-btn">
           <i class="fas fa-plus mr-2"></i> Thêm người dùng
         </button>
+        <button v-else @click="showAddForm" class="add-btn">
+          <i class="fas fa-plus mr-2"></i> Thêm nhân viên
+        </button>
+        <div v-if="roleUser.code === 'admin'" class="filter-item">
+            <label>Kho hàng</label>
+            <select v-model="selectedWarehouseId" @change="applyFiltersAndSearch">
+              <option :value="null">Tất cả</option>
+              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
+            </select>
+          </div>
       </div>
 
       <!-- Table -->
@@ -73,11 +83,12 @@
                   <i class="fas fa-eye"></i>
                 </button>
                 <button 
-                  @click="showUpdateForm(user)" 
                   class="action-btn edit"
                   title="Cập nhật"
                 >
+                <router-link :to="`/update-user/${user.id}`">
                   <i class="fas fa-edit"></i>
+                </router-link>
                 </button>
                 <button 
                   @click="removeCustomer(user.id)" 
@@ -101,7 +112,6 @@
       <!-- Modals -->
       <CustomerDetail :user="customerDetail" :visible="showDetail" @close="closeDetail" />
       <CustomerAdd :show="showAddModal" @close="closeAddModal" @addCustomer="addCustomer" />
-      <CustomerUpdate :show="showUpdateModal" :user="selectedCustomer" @close="closeUpdateModal" @updateCustomer="updateCustomer" />
     </div>
   </div>
 </template>
@@ -111,39 +121,55 @@ import { ref, onBeforeMount, computed } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import CustomerDetail from './DetailUser.vue';
 import CustomerAdd from './AddUser.vue';
-import CustomerUpdate from './UpdateUser.vue';
-import { getAllUserSimpleApi, addUserApi, updateUserApi, removeUserApi, getUserByIdApi } from '@/services/modules/user.api';
-// import { getUserAllApi, addUserApi, updateUserApi, removeUserApi, getUserByIdApi } from '@/services/modules/user.api';
+import { getAllUserSimpleApi, addUserApi, removeUserApi, getUserByIdApi } from '@/services/modules/user.api';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+
+const roleUser = JSON.parse(localStorage.getItem('roles'))
+const dataUser = JSON.parse(localStorage.getItem('user'))
 
 const users = ref([]);
 const originalCustomers = ref([]);
+const warehouse = ref([]);
+const selectedWarehouseId = ref(null);
 const isMiniLoading = ref(false);
 const searchQuery = ref('');
 const selectedRole = ref(null);
 const showDetail = ref(false);
 const customerDetail = ref(null);
 const showAddModal = ref(false);
-const showUpdateModal = ref(false);
-const selectedCustomer = ref(null);
 
 onBeforeMount(() => {
   fetchCustomers();
+  fetchWarehouse();
 });
 
 const fetchCustomers = async () => {
   isMiniLoading.value = true;
   try {
-    const response = await getAllUserSimpleApi();
-    // const response = await getUserAllApi();
-    const data = Array.isArray(response.data) ? response.data : [];
-    users.value = data;
-    originalCustomers.value = [...data];
+    if ((dataUser.warehouses.length === 0 && roleUser.code === 'admin') || (dataUser.warehouses.length !== 0 && roleUser.code !== 'admin')) {
+      const response = await getAllUserSimpleApi();
+      const data = Array.isArray(response.data) ? response.data : [];
+      users.value = data;
+      originalCustomers.value = [...data];
+    } else {
+      users.value = [];
+    }
   } catch (error) {
     console.error('Error fetching users:', error);
     users.value = [];
     originalCustomers.value = [];
   } finally {
     isMiniLoading.value = false;
+  }
+};
+
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    warehouse.value = response.data.data || [];
+  } catch (error) {
+    console.error('Error fetching warehouse:', error);
+    warehouse.value = [];
   }
 };
 
@@ -216,15 +242,15 @@ const closeDetail = () => {
 };
 
 const addCustomer = async (customerData) => {
-  try {
-    await addUserApi(customerData);
-    alert('Thêm người dùng thành công!');
-    fetchCustomers();
-    closeAddModal();
-  } catch (error) {
-    console.error('Error adding user:', error);
-    alert('Có lỗi xảy ra khi thêm người dùng.');
+  const response = await addUserApi(customerData);
+  if (response.data.code === 400) {
+    alert(`Thêm người dùng không thành công!: ${response.data.message}`);
+    console.log('response:', response.data.message);
+    return;
   }
+  alert('Thêm người dùng thành công!');
+  fetchCustomers();
+  closeAddModal();
 };
 
 const showAddForm = () => {
@@ -233,30 +259,6 @@ const showAddForm = () => {
 
 const closeAddModal = () => {
   showAddModal.value = false;
-};
-
-const showUpdateForm = (user) => {
-  selectedCustomer.value = { ...user };
-  showUpdateModal.value = true;
-};
-
-const closeUpdateModal = () => {
-  showUpdateModal.value = false;
-};
-
-const updateCustomer = async (updatedData) => {
-  try {
-    const response = await getUserByIdApi(updatedData.id);
-    // eslint-disable-next-line no-unused-vars
-    const data = response.data || {};
-    await updateUserApi(updatedData.id, updatedData);
-    alert('Cập nhật người dùng thành công!');
-    fetchCustomers();
-    closeUpdateModal();
-  } catch (error) {
-    console.error('Error updating user:', error);
-    alert('Có lỗi xảy ra khi cập nhật người dùng.');
-  }
 };
 
 const filteredCustomers = computed(() => users.value.map((user, index) => ({ ...user, index })));

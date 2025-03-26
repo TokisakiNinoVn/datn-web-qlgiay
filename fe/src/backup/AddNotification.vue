@@ -24,7 +24,7 @@
   
   <script>
 //   import { ref } from 'vue';
-  import { add } from '@/services/modules/notification.api';
+  import { add } from '@/backup/notification.api';
   
   export default {
     emits: ['notificationAdded', 'close'],

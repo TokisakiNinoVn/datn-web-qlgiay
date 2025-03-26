@@ -2,24 +2,44 @@ const db = require('../config/db.config');
 
 //Thêm nhà cung cấp
 exports.addSupplier = async (req, res, next) => { 
-    const { name, contactPerson, phone, email, address } = req.body;
+    const warehouseId = req.user.warehouses[0];
+    const { name, contact_person, phone, email, address, warehouse_id } = req.body;
+    const role = req.user.role;
 
     try {
-        const [nameCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE name = ?', [name]);
-        if (nameCheck.length > 0) {
-            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên nhà cung cấp đã tồn tại', []), req, res, next);
+        if (role === 'admin') {
+            const [nameCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE name = ? AND warehouse_id = ?', [name, warehouse_id]);
+            if (nameCheck.length > 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên nhà cung cấp đã tồn tại', []), req, res, next);
+            }
+
+            const createdAt = new Date();
+            await db.pool.execute('INSERT INTO suppliers (name, warehouse_id, contact_person, phone, email, address, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [name, warehouse_id, contact_person, phone, email, address, createdAt]);
+            // const supplier = { name, contact_person, phone, email, address, createdAt };
+            
+            res.status(201).json({
+                code: 201,
+                status: 'success',
+                // data: supplier,
+                message: 'Thêm nhà cung cấp thành công',
+            });
+        } else {
+            const [nameCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE name = ? AND warehouse_id = ?', [name, warehouseId]);
+            if (nameCheck.length > 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên nhà cung cấp đã tồn tại', []), req, res, next);
+            }
+
+            const createdAt = new Date();
+            await db.pool.execute('INSERT INTO suppliers (name, warehouse_id, contact_person, phone, email, address, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [name, warehouseId, contactPerson, phone, email, address, createdAt]);
+            const supplier = { name, contactPerson, phone, email, address, createdAt };
+
+            res.status(201).json({
+                code: 201,
+                status: 'success',
+                data: supplier,
+                message: 'Thêm nhà cung cấp thành công',
+            });
         }
-
-        const createdAt = new Date();
-        await db.pool.execute('INSERT INTO suppliers (name, contact_person, phone, email, address, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [name, contactPerson, phone, email, address, createdAt]);
-        const supplier = { name, contactPerson, phone, email, address, createdAt };
-
-        res.status(201).json({
-            code: 201,
-            status: 'success',
-            data: supplier,
-            message: 'Thêm nhà cung cấp thành công',
-        });
     } catch (error) {
         console.error('Error in addSupplier function:', error);
         res.status(500).json({ error: error.message });
@@ -77,22 +97,74 @@ exports.deleteSupplier = async (req, res, next) => {
 }
 
 //Lấy danh sách nhà cung cấp
+// exports.getAllSuppliers = async (req, res, next) => { 
+//     try {
+//         const [suppliers] = await db.pool.execute('SELECT * FROM suppliers');
+//         res.status(200).json({
+//             code: 200,
+//             status: 'success',
+//             data: suppliers,
+//             message: 'Lấy danh sách nhà cung cấp thành công',
+//         });
+//     } catch (error) {
+//         console.error('Error in getListSuppliers function:', error);
+//         res.status(500).json({ error: error.message });
+//         next(error);
+//     }
+// }
+// Lấy danh sách nhà cung cấp
 exports.getAllSuppliers = async (req, res, next) => { 
+    const { role, warehouses } = req.user;
+
     try {
-        const [suppliers] = await db.pool.execute('SELECT * FROM suppliers');
+        let suppliersWithProductCount;
+
+        if (role === 'admin') {
+            // Lấy danh sách nhà cung cấp
+            const [suppliers] = await db.pool.execute('SELECT * FROM suppliers');
+        
+            // Lấy số lượng sản phẩm của từng nhà cung cấp
+            const [products] = await db.pool.execute('SELECT supplier_id, COUNT(*) AS total FROM products GROUP BY supplier_id');
+        
+            // Tạo một map để lưu số lượng sản phẩm theo supplier_id
+            const productsMap = products.reduce((acc, product) => {
+                acc[product.supplier_id] = product.total;
+                return acc;
+            }, {});
+
+            // Gán số lượng sản phẩm vào nhà cung cấp tương ứng
+            suppliersWithProductCount = suppliers.map(supplier => ({
+                ...supplier,
+                total_products: productsMap[supplier.id] || 0,
+            }));
+        } else { 
+            const [suppliers] = await db.pool.execute('SELECT * FROM suppliers WHERE warehouse_id = ?', [warehouses[0]]);
+            
+            const [products] = await db.pool.execute('SELECT supplier_id, COUNT(*) AS total FROM products WHERE warehouse_id = ? GROUP BY supplier_id', [warehouses[0]]);
+            const productsMap = products.reduce((acc, product) => {
+                acc[product.supplier_id] = product.total;
+                return acc;
+            }, {});
+            
+            // Gán số lượng sản phẩm vào nhà cung cấp tương ứng
+            suppliersWithProductCount = suppliers.map(supplier => ({
+                ...supplier,
+                total_products: productsMap[supplier.id] || 0,
+            }));
+        }
+
         res.status(200).json({
             code: 200,
             status: 'success',
-            data: suppliers,
+            data: suppliersWithProductCount,
             message: 'Lấy danh sách nhà cung cấp thành công',
         });
     } catch (error) {
-        console.error('Error in getListSuppliers function:', error);
+        console.error('Error in getAllSuppliers function:', error);
         res.status(500).json({ error: error.message });
         next(error);
     }
-}
-
+};
 //Lấy thông tin nhà cung cấp theo ID
 exports.getSupplierById = async (req, res, next) => { 
     const { id } = req.params;

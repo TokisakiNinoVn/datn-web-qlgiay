@@ -2,7 +2,7 @@
   <div v-if="show" class="modal-overlay" @click.self="close">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Thêm Nhà cung cấp</h2>
+        <h2>Thêm danh mục</h2>
         <button @click="close" class="modal-close-btn">
           <i class="fas fa-times"></i>
         </button>
@@ -22,62 +22,17 @@
           />
         </div>
 
-        <!-- <div class="form-group">
-          <label for="address" class="form-label">
-            <i class="fas fa-map-marker-alt mr-2"></i> Địa chỉ
+        <div class="form-group" v-if="roleUser.code === 'admin'">
+          <label for="warehouse" class="form-label">
+            <i class="fas fa-warehouse mr-2"></i> Chọn kho
           </label>
-          <input
-            v-model="formData.address"
-            type="text"
-            id="address"
-            placeholder="Nhập địa chỉ"
-            class="form-input"
-            required
-          />
+          <select v-model="formData.warehouse_id" id="warehouse" class="form-select" required>
+            <option value="" disabled>Chọn kho</option>
+            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+              {{ warehouse.name }}
+            </option>
+          </select>
         </div>
-
-        <div class="form-group flex gap-4">
-          <div class="flex-1">
-            <label for="contactPerson" class="form-label">
-              <i class="fas fa-user mr-2"></i> Người liên hệ
-            </label>
-            <input
-              v-model="formData.contactPerson"
-              type="text"
-              id="contactPerson"
-              placeholder="Tên người liên hệ"
-              class="form-input"
-              required
-            />
-          </div>
-          <div class="flex-1">
-            <label for="phone" class="form-label">
-              <i class="fas fa-phone mr-2"></i> Số điện thoại
-            </label>
-            <input
-              v-model="formData.phone"
-              type="text"
-              id="phone"
-              placeholder="Nhập số điện thoại"
-              class="form-input"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="email" class="form-label">
-            <i class="fas fa-envelope mr-2"></i> Email
-          </label>
-          <input
-            v-model="formData.email"
-            type="email"
-            id="email"
-            placeholder="Nhập email"
-            class="form-input"
-            required
-          />
-        </div> -->
 
         <div class="modal-footer">
           <button type="button" @click="close" class="cancel-btn">
@@ -94,8 +49,13 @@
 
 <script setup>
 // import { ref, onMounted } from 'vue';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { defineProps, defineEmits } from 'vue';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import { addCategoryApi } from '@/services/modules/category.api';
+
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const warehouses = ref([]);
 
 // Props và Emits
 // eslint-disable-next-line no-unused-vars
@@ -105,32 +65,43 @@ const props = defineProps({
     default: false,
   },
 });
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    if (Array.isArray(response.data.data)) {
+      warehouses.value = response.data.data;
+    } else {
+      throw new Error('Dữ liệu kho không phải là một mảng');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách kho:', error);
+    warehouses.value = [];
+  }
+};
 
 const emit = defineEmits(['close', 'addCategory']);
 
 // Form Data
 const formData = ref({
   name: '',
-  // address: '',
-  // contactPerson: '',
-  // phone: '',
-  // email: '',
+  warehouse_id: '', 
 });
 
 // Xử lý submit
-const handleAdd = () => {
-  emit('addCategory', { ...formData.value });
+const handleAdd = async () => {
+  const categoryData = { ...formData.value };
+  const response = await addCategoryApi(categoryData);
+  emit('addCategory', response.data);
+  alert('Thêm danh mục thành công!');
   resetForm();
+  close();
 };
 
 // Reset form sau khi submit
 const resetForm = () => {
   formData.value = {
     name: '',
-    address: '',
-    contactPerson: '',
-    phone: '',
-    email: '',
+    warehouse_id: '',
   };
 };
 
@@ -138,6 +109,12 @@ const resetForm = () => {
 const close = () => {
   emit('close');
 };
+
+onMounted(() => {
+  if (roleUser.code === 'admin') {
+      fetchWarehouse();
+    }
+});
 </script>
 
 <style scoped>
@@ -270,7 +247,20 @@ i {
   gap: 8px;
   transition: background 0.3s;
 }
+.form-input, .form-select {
+  width: 80%;
+  padding: 12px;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.3s;
+}
 
+.form-input:focus, .form-select:focus {
+  border-color: #3498db;
+  outline: none;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.2);
+}
 .save-btn:hover {
   background: #219653;
 }

@@ -67,7 +67,7 @@
 import { ref, onBeforeMount } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import AddNotificationForm from './AddNotification.vue';
-import { getAll } from '@/services/modules/notification.api';
+import { getAll } from '@/backup/notification.api';
 
 const notification = ref([]);
 const isMiniLoading = ref(false);

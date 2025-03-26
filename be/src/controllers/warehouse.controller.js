@@ -1,5 +1,6 @@
 const db = require('../config/db.config');
-
+const { HTTP_STATUS } = require('../constants/status-code.js');
+const AppError = require('../utils/app-error.js');
 //Tạo kho mới
 exports.createWarehouse = async (req, res, next) => { 
     const { name, address, description, idManager } = req.body;
@@ -8,23 +9,30 @@ exports.createWarehouse = async (req, res, next) => {
         if (nameCheck.length > 0) {
             return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên kho đã tồn tại', []), req, res, next);
         }
-        
-        // Lấy role code của user manager
-        const [getIdRoleManager] = await db.pool.execute('SELECT role_id FROM users WHERE id = ?', [idManager]);
-        const idRoleManager = getIdRoleManager[0].role_id;
-        const roleCodeUserManager = await db.pool.execute('SELECT code FROM roles WHERE id = ?', [idRoleManager]);
-        if (roleCodeUserManager[0][0].code === 'staff') {
-            await db.pool.execute('UPDATE users SET role_id = ? WHERE id = ?', [2, idManager]);
-        }
 
-        const createdAt = new Date();
-        await db.pool.execute('INSERT INTO warehouses (name, address, description, manager_id, createdAt) VALUES (?, ?, ?, ?, ?)', [name, address, description, idManager, createdAt]);
-        const warehouse = { name, address, description, idManager, createdAt };
+        if (idManager == null) { 
+            const createdAt = new Date();
+            await db.pool.execute('INSERT INTO warehouses (name, address, description, createdAt) VALUES (?, ?, ?, ?)', [name, address, description, createdAt]);
+            // const warehouse = { name, address, description, createdAt };
+        } else {
+            // Lấy role code của user manager
+            const [getIdRoleManager] = await db.pool.execute('SELECT role_id FROM users WHERE id = ?', [idManager]);
+            const idRoleManager = getIdRoleManager[0].role_id;
+            const roleCodeUserManager = await db.pool.execute('SELECT code FROM roles WHERE id = ?', [idRoleManager]);
+            if (roleCodeUserManager[0][0].code === 'staff') {
+                await db.pool.execute('UPDATE users SET role_id = ? WHERE id = ?', [2, idManager]);
+            }
+    
+            const createdAt = new Date();
+            await db.pool.execute('INSERT INTO warehouses (name, address, description, manager_id, createdAt) VALUES (?, ?, ?, ?, ?)', [name, address, description, idManager, createdAt]);
+            // const warehouse = { name, address, description, idManager, createdAt };
+        }
+        
 
         res.status(201).json({
             code: 201,
             status: 'success',
-            data: warehouse,
+            // data: warehouse,
             message: 'Tạo kho thành công',
         });
     } catch (error) {
@@ -37,7 +45,7 @@ exports.createWarehouse = async (req, res, next) => {
 //Cập nhật thông tin kho
 exports.updateWarehouse = async (req, res, next) => { 
     const { id, name, address, description, idManager } = req.body;
-    // console.log(req.body);
+    console.log(req.body);
     try {
         const [warehouseCheck] = await db.pool.execute('SELECT * FROM warehouses WHERE id = ?', [id]);
         if (warehouseCheck.length === 0) {
@@ -45,12 +53,18 @@ exports.updateWarehouse = async (req, res, next) => {
         }
 
         const updatedAt = new Date();
-        // await db.pool.execute('UPDATE warehouses SET name = ?, address = ?, description = ?, manager_id = ?, updateAt = ? WHERE id = ?', [name, address, description, idManager, id]);
-        await db.pool.execute(
-            'UPDATE warehouses SET name = ?, address = ?, description = ?, manager_id = ?, updateAt = ? WHERE id = ?',
-            [name, address, description, idManager, updatedAt, id] // <-- thêm updatedAt
-        );
-        
+
+        if (idManager == null) { 
+            await db.pool.execute(
+                'UPDATE warehouses SET name = ?, address = ?, description = ?, updateAt = ? WHERE id = ?',
+                [name, address, description, updatedAt, id] 
+            );
+        } else {
+            await db.pool.execute(
+                'UPDATE warehouses SET name = ?, address = ?, description = ?, manager_id = ?, updateAt = ? WHERE id = ?',
+                [name, address, description, idManager, updatedAt, id] // <-- thêm updatedAt
+            );
+        }
         const warehouse = { id, name, address, description, idManager, updatedAt };
         res.status(200).json({
             code: 200,
@@ -64,51 +78,6 @@ exports.updateWarehouse = async (req, res, next) => {
         next(error);
     }
 }
-
-// //Xóa kho
-// exports.deleteWarehouse = async (req, res, next) => {
-//     const { id } = req.params;
-//     try {
-//         const [warehouseCheck] = await db.pool.execute('SELECT * FROM warehouses WHERE id = ?', [id]);
-//         if (warehouseCheck.length === 0) {
-//             return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Kho không tồn tại', []), req, res, next);
-//         }
-
-//         await db.pool.execute('DELETE FROM warehouses WHERE id = ?', [id]);
-
-//         //Map qua bảng products để xóa sản phẩm trong kho
-//         const [products] = await db.pool.execute('SELECT id FROM products WHERE warehouse_id = ?', [id]);
-
-//         if (products.length > 0) {
-//             const productIds = products.map(product => product.id);
-//             await db.pool.query('DELETE FROM products WHERE id IN (?)', [productIds]);
-//         }
-
-//         // Map qua bảng stock_transactions để xóa giao dịch trong kho
-//         const [stockTransactions] = await db.pool.execute('SELECT id FROM stock_transactions WHERE warehouse_id = ?', [id]);
-//         if (stockTransactions.length > 0) {
-//             const stockTransactionIds = stockTransactions.map(stockTransaction => stockTransaction.id);
-//             await db.pool.query('DELETE FROM stock_transactions WHERE id IN (?)', [stockTransactionIds]);
-//         }
-
-//         // Map qua bảng detail_transactions để xóa chi tiết giao dịch (transaction_id tương ứng) trong kho
-//         const [stockTransactionDetails] = await db.pool.execute('SELECT id FROM detail_transactions WHERE transaction_id = ?', [id]);
-//         if (stockTransactionDetails.length > 0) {
-//             const stockTransactionDetailIds = stockTransactionDetails.map(stockTransactionDetail => stockTransactionDetail.id);
-//             await db.pool.query('DELETE FROM detail_transactions WHERE id IN (?)', [stockTransactionDetailIds]);
-//         }
-
-//         res.status(200).json({
-//             code: 200,
-//             status: 'success',
-//             message: 'Xóa kho thành công',
-//         });
-//     } catch (error) {
-//         console.error('Error in deleteWarehouse function:', error);
-//         res.status(500).json({ error: error.message });
-//         next(error);
-//     }
-// }
 
 // Xóa kho
 exports.deleteWarehouse = async (req, res, next) => { 
@@ -143,7 +112,7 @@ exports.deleteWarehouse = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in deleteWarehouse function:', error);
-        return next(error); // Không gửi response nếu đã gọi next(error)
+        return next(error);
     }
 }
 
@@ -199,3 +168,20 @@ exports.getListWarehouses = async (req, res, next) => {
     }
 };
 
+
+// lấy name và id của tất cả các kho
+exports.getSimpleAllWarehouses = async (req, res, next) => {
+    try {
+        const [rows] = await db.pool.execute('SELECT id, name FROM warehouses');
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            data: rows,
+            message: 'Lấy danh sách kho thành công',
+        });
+    } catch (error) {
+        console.error('Error in getAllWarehouses function:', error);
+        res.status(500).json({ error: error.message });
+        next(error);
+    }
+}

@@ -9,59 +9,71 @@
           alt="Shoe Inventory Logo"
         />
         <div class="profile-info">
-          <span class="profile-role">Admin</span>
-          <span class="profile-name">Tokisaki Nino</span>
+          <!-- <span class="profile-role" style="text-transform: uppercase;">{{ userRole }} <span v-if="userRole !== 'admin' && dataUser.warehouses[0] !== []">- {{ dataUser.warehouses[0].name }}</span></span> -->
+          <span class="profile-role" style="text-transform: uppercase;">
+            {{ userRole }} 
+            <span v-if="userRole !== 'admin' && dataUser.warehouses.length > 0">- {{ dataUser.warehouses[0].name }}</span>
+          </span>
+          <span class="profile-role"></span>
+          <span class="profile-name" style="margin-top: 10px;">{{ dataUser.name }}</span>
         </div>
       </router-link>
 
       <!-- Navigation Items -->
       <div class="nav-items">
-        <router-link class="nav-item" to="/home">
+        <router-link v-if="userRole !== 'staff'" class="nav-item" to="/home">
+          <i class="fas fa-home"></i>
+          <span>Trang chủ</span>
+        </router-link>
+        <router-link v-if="userRole === 'staff'" class="nav-item" to="/home-staff">
           <i class="fas fa-home"></i>
           <span>Trang chủ</span>
         </router-link>
 
-        <router-link class="nav-item" to="/warehouse-management">
-          <i class="fas fa-warehouse"></i>
+        <router-link v-if="userRole === 'admin'" class="nav-item" to="/warehouse-management">
+          <i class="fas fa-warehouse mr-2"></i> 
           <span>Quản lý kho</span>
         </router-link>
+        <router-link v-if="userRole === 'admin' || userRole === 'manager'" class="nav-item" to="/management-user">
+          <i class="fas fa-users-cog"></i>
+          <span v-if="userRole === 'manager'">Quản lý nhân viên</span>
+          <span v-else>Quản lý người dùng</span>
+        </router-link>
 
-        <router-link class="nav-item" to="/product-management">
+        <router-link v-if="userRole === 'admin' || userRole === 'manager'" class="nav-item" to="/category-management">
+          <i class="fas fa-th-list"></i>
+          <span>Quản lý danh mục</span>
+        </router-link>
+
+        <router-link v-if="userRole === 'admin' || userRole === 'manager'" class="nav-item" to="/brand-management">
+          <i class="fas fa-tags"></i>
+          <span>Quản lý thương hiệu</span>
+        </router-link>
+
+        <router-link v-if="userRole === 'admin' || userRole === 'manager'" class="nav-item" to="/supplier-management">
+          <!-- <router-link class="nav-item" to="/supplier-management"> -->
+          <i class="fas fa-truck"></i>
+          <span>Quản lý nhà cung cấp</span>
+        </router-link>
+
+        <router-link v-if="userRole === 'admin' || userRole === 'manager' || userRole === 'staff'" class="nav-item" to="/product-management">
           <i class="fas fa-boxes-stacked"></i>
           <span>Quản lý hàng hóa</span>
         </router-link>
 
-        <router-link class="nav-item" to="/import-management">
+        <router-link v-if="userRole === 'admin' || userRole === 'manager' || userRole === 'staff'" class="nav-item" to="/enter-management">
           <i class="fas fa-cart-arrow-down"></i>
           <span>Quản lý nhập kho</span>
         </router-link>
 
+        <!-- <router-link v-if="userRole === 'admin' || userRole === 'manager' || userRole === 'staff'" class="nav-item" to="/export-management"> -->
         <router-link class="nav-item" to="/export-management">
           <i class="fas fa-dolly"></i>
           <span>Quản lý xuất kho</span>
         </router-link>
 
-        <router-link class="nav-item" to="/supplier-management">
-          <i class="fas fa-truck"></i>
-          <span>Quản lý nhà cung cấp</span>
-        </router-link>
-
-        <router-link class="nav-item" to="/management-user">
-          <i class="fas fa-users-cog"></i>
-          <span>Quản lý người dùng</span>
-        </router-link>
-
-        <router-link class="nav-item" to="/category-management">
-          <i class="fas fa-th-list"></i>
-          <span>Quản lý danh mục</span>
-        </router-link>
-
-        <router-link class="nav-item" to="/brand-management">
-          <i class="fas fa-tags"></i>
-          <span>Quản lý thương hiệu</span>
-        </router-link>
-
-        <router-link class="nav-item" to="/reports">
+        <!-- <router-link v-if="userRole === 'admin' || userRole === 'manager' || userRole === 'staff'" class="nav-item" to="/statistics"> -->
+        <router-link class="nav-item" to="/statistics">
           <i class="fas fa-chart-line"></i>
           <span>Báo cáo & Thống kê</span>
         </router-link>
@@ -91,15 +103,18 @@
   </div>
 </template>
 
-
 <script setup>
 import { onMounted } from 'vue';
-// import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { logout } from '@/services/modules/auth.api';
 
 const router = useRouter();
-// const userName = ref(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).name : 'Quản lý');
+const parsedRole = JSON.parse(localStorage.getItem('roles'));
+const userRole = parsedRole.code;
+
+const dataUser = JSON.parse(localStorage.getItem('user'));
+
+
 
 const handleLogout = async () => {
   if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
@@ -111,6 +126,8 @@ const handleLogout = async () => {
       router.push('/login');
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('user');
+      localStorage.removeItem('roles');
+      localStorage.removeItem('loginTime');
       localStorage.setItem('isLoggedIn', 'false');
     }
   }

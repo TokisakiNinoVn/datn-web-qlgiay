@@ -2,7 +2,7 @@
   <div v-if="show" class="modal-overlay" @click.self="close">
     <div class="modal-container">
       <div class="modal-header">
-        <h2 class="modal-title">Thêm Người dùng Mới</h2>
+        <h2 class="modal-title">Thêm Người dùng mới</h2>
         <button @click="close" class="modal-close-btn">
           <i class="fas fa-times"></i>
         </button>
@@ -15,7 +15,7 @@
               <i class="fas fa-user mr-2"></i> Họ và tên
             </label>
             <input
-              v-model="formData.full_name"
+              v-model="formData.fullname"
               type="text"
               placeholder="Nhập họ và tên"
               class="form-input"
@@ -32,7 +32,6 @@
               type="email"
               placeholder="Nhập email"
               class="form-input"
-              required
             />
           </div>
 
@@ -78,12 +77,44 @@
             <label class="form-label">
               <i class="fas fa-user-tag mr-2"></i> Vai trò
             </label>
-            <select v-model="formData.role_code" class="form-select" required>
+            <select v-model="formData.role_code" class="form-select" required @change="handleRoleChange">
               <option value="" disabled>Chọn vai trò</option>
-              <option value="admin">Quản trị viên</option>
-              <option value="manager">Quản lý kho</option>
+              <option v-if="roleUser.code == 'admin'" value="admin">Quản trị viên</option>
+              <option v-if="roleUser.code == 'admin'" value="manager">Quản lý kho</option>
               <option value="staff">Nhân viên</option>
             </select>
+          </div>
+
+          <!-- Chọn kho -->
+          <div class="form-group" v-if="shouldShowWarehouse && roleUser.code == 'admin'">
+            <label class="form-label">
+              <i class="fas fa-warehouse mr-2"></i> Chọn kho
+            </label>
+            <select v-model="formData.warehouse" class="form-select" required>
+              <option value="" disabled>Chọn kho làm việc</option>
+              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                {{ warehouse.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group" v-else>
+            <label class="form-label">
+              <i class="fas fa-warehouse mr-2"></i> Kho
+            </label>
+            <!-- :value="warehouseUser.name" -->
+            <!-- <input
+              type="text"
+              class="form-input"
+              v-model="formData.warehouse"
+              disabled
+            /> -->
+            <input
+              type="text"
+              class="form-input"
+              :value="warehouseName"
+              disabled
+            />
+
           </div>
 
           <div class="form-group full-width">
@@ -125,47 +156,77 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
+import { ref, computed, defineProps, defineEmits, onBeforeMount } from 'vue';
+import { getListSimpleWarehouseApi} from '@/services/modules/warehouse.api';
 
-// eslint-disable-next-line no-unused-vars
-const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false,
-  },
-});
+const roleUser = JSON.parse(localStorage.getItem('roles'))
+const dataUser = JSON.parse(localStorage.getItem('user'))
+const warehouseUser = dataUser.warehouses[0]
 
 const emit = defineEmits(['close', 'addCustomer']);
 
 const formData = ref({
-  full_name: '',
+  fullname: '',
   phone: '',
   address: '',
   gender: null,
   email: '',
   note: '',
   password: '',
-  role_code: '',
+  role_code: 'staff',
+  warehouse: '',
 });
 
+const warehouses = ref([]);
+
+onBeforeMount(() => {
+  fetchWarehouse();
+
+  if (roleUser.code === 'admin') {
+    formData.value.role_code = 'admin';
+  } else {
+    try {
+      
+      formData.value.warehouse = warehouseUser.id;
+    } catch (error) {
+      console.error('Error fetching warehouse:', error);
+      warehouses.value = [];
+    }
+  }
+
+});
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    warehouses.value = response.data.data || [];
+  } catch (error) {
+    console.error('Error fetching warehouse:', error);
+    warehouses.value = [];
+  }
+};
+// eslint-disable-next-line no-unused-vars
+const props = defineProps({
+  show: Boolean,
+});
+// Xác định khi nào cần hiển thị chọn kho
+const shouldShowWarehouse = computed(() => formData.value.role_code === 'manager' || formData.value.role_code === 'staff');
+
+// Xử lý khi thay đổi vai trò
+const handleRoleChange = () => {
+  if (formData.value.role_code === 'admin') {
+    formData.value.warehouse = '';
+  }
+};
+
 const handleAdd = () => {
-  const newUser = {
-    full_name: formData.value.full_name,
-    phone: formData.value.phone,
-    address: formData.value.address || '',
-    gender: formData.value.gender,
-    email: formData.value.email,
-    note: formData.value.note || '',
-    password: formData.value.password,
-    role_code: formData.value.role_code,
-  };
+  const newUser = { ...formData.value };
   emit('addCustomer', newUser);
   resetForm();
 };
 
 const resetForm = () => {
   formData.value = {
-    full_name: '',
+    fullname: '',
     phone: '',
     address: '',
     gender: null,
@@ -173,13 +234,21 @@ const resetForm = () => {
     note: '',
     password: '',
     role_code: '',
+    warehouse: '',
   };
 };
 
 const close = () => {
   emit('close');
 };
+
+const warehouseName = computed(() => {
+  const warehouse = warehouses.value.find(w => w.id === formData.value.warehouse);
+  return warehouse ? warehouse.name : 'Không xác định';
+});
+
 </script>
+
 
 <style scoped>
 /* Modal Styles */

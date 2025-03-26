@@ -39,18 +39,19 @@
               :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"
               class="toggle-password"
               @click="togglePassword"
+              style="cursor: pointer; margin-right: 0.5rem;"
             ></i>
           </div>
         </div>
 
         <button type="submit" class="login-btn">
-          <i class="fas fa-sign-in-alt"></i> Đăng nhập
+          <i class="fas fa-sign-in-alt"  style="cursor: pointer; margin-right: 0.5rem;"></i> Đăng nhập
         </button>
 
         <div class="extra-options">
-          <button @click="forgetPassword" class="forgot-btn">
-            Quên mật khẩu?
-          </button>
+          <router-link to="/forget-password">Quên mật khẩu?</router-link>
+          <!-- <button @click="forgetPassword" class="forgot-btn"> -->
+          <!-- </button> -->
           <!-- <router-link to="/register" class="register-link">
             Chưa có tài khoản? Đăng ký ngay
           </router-link> -->
@@ -88,6 +89,12 @@ const showPassword = ref(false);
 const router = useRouter();
 
 onMounted(() => {
+  // Chặn quay lại trang trước đó
+  history.pushState(null, null, location.href);
+  window.addEventListener('popstate', () => {
+    history.pushState(null, null, location.href);
+  });
+
   localStorage.setItem('isLoggedIn', 'false');
   localStorage.setItem('token', '');
 });
@@ -97,20 +104,20 @@ const handleLogin = async () => {
   try {
     const response = await login({ phone: phone.value, password: password.value });
     const { data } = response.data;
+
+    const roles = data.role[0].code;
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('user', JSON.stringify(data));
     localStorage.setItem('token', response.data.token);
-    localStorage.setItem('roles', JSON.stringify(data.roles));
+    localStorage.setItem('roles', JSON.stringify(data.role[0]));
     localStorage.setItem('loginTime', new Date().getTime());
-    router.push('/home');
+    if (roles === 'staff') router.push('/home-staff');
+    else router.push('/home');
+
   } catch (error) {
     console.log(error);
     errorMessage.value = error.response?.data?.message || 'Đăng nhập thất bại';
   }
-};
-
-const forgetPassword = () => {
-  alert('Chức năng đang được phát triển! 🥲');
 };
 
 const togglePassword = () => {

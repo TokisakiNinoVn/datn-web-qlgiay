@@ -19,5 +19,6 @@ router.delete('/:id', customerController.deleteUser);
 router.post('/add', customerController.add);
 router.post('/search', customerController.search);
 router.post('/filter', customerController.filter);
+router.post('/update-my-infor', customerController.updateProfile);
 
 module.exports = router;

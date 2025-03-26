@@ -21,6 +21,17 @@
             required
           />
         </div>
+        <div class="form-group" v-if="roleUser.code === 'admin'">
+          <label for="warehouse" class="form-label">
+            <i class="fas fa-warehouse mr-2"></i> Chọn kho
+          </label>
+          <select v-model="formData.warehouse_id" id="warehouse" class="form-select" required>
+            <option value="" disabled>Chọn kho</option>
+            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+              {{ warehouse.name }}
+            </option>
+          </select>
+        </div>
 
         <div class="modal-footer">
           <button type="button" @click="close" class="cancel-btn">
@@ -36,9 +47,13 @@
 </template>
 
 <script setup>
-// import { ref, onMounted } from 'vue';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { defineProps, defineEmits } from 'vue';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import { addBrandApi } from '@/services/modules/brand.api';
+
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const warehouses = ref([]);
 
 // Props và Emits
 // eslint-disable-next-line no-unused-vars
@@ -54,26 +69,47 @@ const emit = defineEmits(['close', 'addBrand']);
 // Form Data
 const formData = ref({
   name: '',
-  address: '',
-  contactPerson: '',
-  phone: '',
-  email: '',
+  warehouse_id: '',
 });
 
-// Xử lý submit
-const handleAdd = () => {
-  emit('addBrand', { ...formData.value });
-  resetForm();
+// Lấy danh sách kho
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    if (Array.isArray(response.data.data)) {
+      warehouses.value = response.data.data;
+    } else {
+      throw new Error('Dữ liệu kho không phải là một mảng');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách kho:', error);
+    warehouses.value = [];
+  }
+};
+
+// Xử lý thêm thương hiệu
+const handleAdd = async () => {
+  try {
+    const brandData = { ...formData.value };
+    if (roleUser.code !== 'admin') {
+      delete brandData.warehouse_id;
+    }
+    const response = await addBrandApi(brandData);
+    emit('addBrand', response.data);
+    alert('Thêm thương hiệu thành công!');
+    resetForm();
+    close();
+  } catch (error) {
+    console.error('Lỗi khi thêm thương hiệu:', error);
+    alert('Thêm thương hiệu thất bại!');
+  }
 };
 
 // Reset form sau khi submit
 const resetForm = () => {
   formData.value = {
     name: '',
-    // address: '',
-    // contactPerson: '',
-    // phone: '',
-    // email: '',
+    warehouse_id: '',
   };
 };
 
@@ -81,12 +117,18 @@ const resetForm = () => {
 const close = () => {
   emit('close');
 };
+
+// Khởi tạo dữ liệu khi mounted
+onMounted(() => {
+  fetchWarehouse();
+});
 </script>
 
 <style scoped>
 i {
   margin-right: 8px;
 }
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -145,10 +187,15 @@ i {
 
 .modal-body {
   padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-label {
@@ -157,15 +204,14 @@ i {
   color: #2c3e50;
   font-weight: 600;
   font-size: 15px;
-  margin-bottom: 8px;
 }
 
 .form-label i {
   color: #3498db;
 }
 
-.form-input {
-  width: 90%;
+.form-input, .form-select {
+  width: 80%;
   padding: 12px;
   border: 1px solid #dfe6e9;
   border-radius: 8px;
@@ -173,7 +219,7 @@ i {
   transition: border-color 0.3s;
 }
 
-.form-input:focus {
+.form-input:focus, .form-select:focus {
   border-color: #3498db;
   outline: none;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.2);

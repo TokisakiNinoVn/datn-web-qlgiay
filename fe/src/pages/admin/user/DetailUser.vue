@@ -13,8 +13,14 @@
           <!-- Avatar Section -->
           <div class="avatar-section">
             <img
-              v-if="user.avatar_url"
+              v-if="user.id === 1"
               :src="user.avatar_url"
+              alt="Ảnh hồ sơ"
+              class="avatar-img"
+            >
+            <img
+              v-else-if="user.avatar_url"
+              :src="instance.defaults.baseURL + user.avatar_url"
               alt="Ảnh hồ sơ"
               class="avatar-img"
             >
@@ -75,7 +81,7 @@
 
 <script setup>
 import { defineProps, defineEmits } from 'vue';
-// import instance from '@/services/axiosConfig';
+import instance from '@/services/axiosConfig';
 
 // eslint-disable-next-line no-unused-vars
 const props = defineProps({

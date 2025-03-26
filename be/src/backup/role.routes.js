@@ -1,7 +1,7 @@
 // user.router.js
 const express = require('express');
 const router = express.Router();
-const { roleController } = require('../../controllers/index');
+const { roleController } = require('../controllers/index');
 
 router.post('/create', roleController.addRole);
 

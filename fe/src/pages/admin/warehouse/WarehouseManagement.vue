@@ -65,6 +65,10 @@
               <i class="fas fa-user"></i>
               <span>{{ warehouse.manager_info.full_name }}</span>
             </div>
+            <div v-else class="info-item">
+              <i class="fas fa-user"></i>
+              <span>Chưa có</span>
+            </div>
             <div class="info-item">
               <i class="fas fa-clock"></i>
               <span>{{ formatDate(warehouse.createdAt) }}</span>
@@ -192,7 +196,7 @@ const fetchListWarehouse = async () => {
     const response = await getListWarehouseApi();
     if (response && response.data && response.data.data) {
       listWarehouse.value = response.data.data;
-      console.log("Warehouse data loaded:", listWarehouse.value);
+      // console.log("Warehouse data loaded:", listWarehouse.value);
     } else {
       console.error("Invalid response structure:", response);
       listWarehouse.value = [];

@@ -123,7 +123,7 @@
 
 <script setup>
 import { ref, onBeforeMount } from 'vue';
-import { getAll, createApi } from '@/services/modules/complaint.api';
+import { getAll, createApi } from '@/backup/complaint.api';
 import Navbar from '@/components/NavbarComponent.vue';
 
 const complaints = ref([]);

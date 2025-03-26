@@ -2,7 +2,7 @@
   <div v-if="visible" class="modal-overlay" @click.self="closeDetail">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Chi tiết Nhà cung cấp: {{ category.name }}</h2>
+        <h2>Chi tiết danh mục: {{ category.name }}</h2>
         <button @click="closeDetail" class="modal-close-btn">
           <i class="fas fa-times"></i>
         </button>

@@ -30,12 +30,12 @@
           <router-link v-if="!isAuthenticated" to="/login" class="hero-btn">
             Bắt đầu ngay
           </router-link>
-          <router-link v-else to="/dashboard" class="hero-btn">
+          <router-link v-else to="/login" class="hero-btn">
             Vào bảng điều khiển
           </router-link>
         </div>
         <div class="hero-image">
-          <img class="image-kajwd" src="https://i.pinimg.com/736x/2e/e4/46/2ee446d69c5a1439a151b47049ab91ae.jpg" alt="Shoe Inventory" />
+          <img class="image-kajwd" src="https://i.pinimg.com/736x/a1/39/ec/a139ecb1bbf77714f995ab47d9d34487.jpg" alt="Shoe Inventory" />
         </div>
       </section>
 
@@ -88,9 +88,8 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  font-family: 'Roboto', sans-serif;
   color: #1a1a1a;
-  background: linear-gradient(120deg, #f9e8d9 0%, #f5c7a9 100%);
+  background: linear-gradient(120deg, #5292ed 0%, #f9e8d9 100%);
   display: flex;
   flex-direction: column;
 }

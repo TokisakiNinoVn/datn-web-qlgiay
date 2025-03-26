@@ -139,7 +139,7 @@ import {
   getAllBasic,
   freezeApi,
   // getAll
-} from '@/services/modules/staff.api';
+} from '@/backup/staff.api';
 
 const staff = ref([]);
 const isMiniLoading = ref(false);

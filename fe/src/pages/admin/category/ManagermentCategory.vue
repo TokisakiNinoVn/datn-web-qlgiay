@@ -5,7 +5,7 @@
       <div class="header">
         <h1 class="title">Quản lý Danh mục</h1>
         <div class="stats">
-          <span>Tổng: {{ filteredCategorys.length }} danh mục</span>
+          <span>Tổng: {{ filteredCategories.length }} danh mục</span>
         </div>
       </div>
 
@@ -25,40 +25,55 @@
             <i class="fas fa-plus mr-2"></i> Thêm danh mục
           </button>
         </div>
+        <div v-if="roleUser.code === 'admin'" class="filter-item">
+          <label class="filter-label">Kho hàng</label>
+          <select v-model="selectedWarehouseId" @change="applyFilters" class="filter-select">
+            <option :value="null">Tất cả</option>
+            <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
+          </select>
+        </div>
       </div>
 
       <!-- Category Table -->
       <div class="category-table-wrapper">
-        <div class="table-grid">
-          <div class="table-header">
-            <div class="table-cell">STT</div>
-            <div class="table-cell">Tên danh mục</div>
-            <div class="table-cell">Số lượng sản phẩm</div>
-            <div class="table-cell">Hành động</div>
-          </div>
-          <div
-            v-for="(category, index) in filteredCategorys"
-            :key="category.id"
-            class="table-row"
-          >
-            <div class="table-cell">{{ index + 1 }}</div>
-            <div class="table-cell">{{ category.name }}</div>
-            <div class="table-cell">{{ category.total_products }}</div>
-            <div class="table-cell action-cell">
-              <button @click.stop="viewCategory(category)" class="action-btn view-btn">
-                <i class="fa-solid fa-eye"></i>
-              </button>
-              <button @click.stop="showUpdateForm(category)" class="action-btn edit-btn">
-                <i class="fa-solid fa-pencil"></i>
-              </button>
-              <button @click.stop="removeCategory(category.id)" class="action-btn delete-btn">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          </div>
+        <table class="category-table">
+          <thead>
+            <tr class="table-header">
+              <th class="table-cell">STT</th>
+              <th class="table-cell">Tên danh mục</th>
+              <th v-if="roleUser.code === 'admin'" class="table-cell">Kho</th>
+              <th class="table-cell">Số lượng sản phẩm</th>
+              <th class="table-cell">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(category, index) in filteredCategories"
+              :key="category.id"
+              class="table-row"
+            >
+              <td class="table-cell">{{ index + 1 }}</td>
+              <td class="table-cell">{{ category.name }}</td>
+              <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseName(category.warehouse_id) }}</td>
+              <td class="table-cell">{{ category.total_products || 0 }}</td>
+              <td class="table-cell action-cell">
+                <button @click.stop="viewCategory(category)" class="action-btn view-btn" title="Xem chi tiết">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button @click.stop="showUpdateForm(category)" class="action-btn edit-btn" title="Chỉnh sửa">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button @click.stop="removeCategory(category.id)" class="action-btn delete-btn" title="Xóa">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="isMiniLoading" class="loading">
+          <i class="fas fa-spinner fa-spin"></i> Đang tải...
         </div>
-        <div v-if="isMiniLoading" class="loading">Đang tải...</div>
-        <div v-if="!isMiniLoading && filteredCategorys.length === 0" class="no-results">
+        <div v-if="!isMiniLoading && filteredCategories.length === 0" class="no-results">
           Không tìm thấy danh mục nào.
         </div>
       </div>
@@ -84,12 +99,15 @@ import CategoryAdd from './AddCategory.vue';
 import CategoryUpdate from './UpdateCategory.vue';
 import {
   getAllCategoryApi,
-  addCategoryApi,
   updateCategoryApi,
   deleteCategoryApi
 } from '@/services/modules/category.api';
+import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 
-const categorys = ref([]);
+const categories = ref([]);
+const warehouses = ref([]);
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const selectedWarehouseId = ref(null);
 const isMiniLoading = ref(false);
 const searchQuery = ref('');
 const showDetail = ref(false);
@@ -100,7 +118,8 @@ const selectedCategory = ref(null);
 const idAdminLogin = ref(null);
 
 onBeforeMount(() => {
-  fetchCategorys();
+  fetchCategories();
+  fetchWarehouse();
   const userInfor = localStorage.getItem('user');
   if (userInfor) {
     const user = JSON.parse(userInfor);
@@ -108,29 +127,61 @@ onBeforeMount(() => {
   }
 });
 
-const fetchCategorys = async () => {
+const fetchCategories = async () => {
   isMiniLoading.value = true;
   try {
     const response = await getAllCategoryApi();
     if (Array.isArray(response.data.data)) {
-      categorys.value = response.data.data;
+      categories.value = response.data.data;
     } else {
       throw new Error('Dữ liệu không phải là một mảng');
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
-    categorys.value = [];
+    categories.value = [];
   } finally {
     isMiniLoading.value = false;
   }
 };
 
-const filteredCategorys = computed(() => {
-  const query = searchQuery.value.toLowerCase();
-  return categorys.value.filter(category =>
-    category.name.toLowerCase().includes(query)
-  );
+const fetchWarehouse = async () => {
+  try {
+    const response = await getListSimpleWarehouseApi();
+    if (Array.isArray(response.data.data)) {
+      warehouses.value = response.data.data;
+    } else {
+      throw new Error('Dữ liệu kho không phải là một mảng');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách kho:', error);
+    warehouses.value = [];
+  }
+};
+
+const filteredCategories = computed(() => {
+  let filtered = categories.value;
+  const query = searchQuery.value.toLowerCase().trim();
+  if (query) {
+    filtered = filtered.filter(category =>
+      category.name.toLowerCase().includes(query)
+    );
+  }
+  if (roleUser.code === 'admin' && selectedWarehouseId.value) {
+    filtered = filtered.filter(category =>
+      category.warehouse_id === selectedWarehouseId.value
+    );
+  }
+  return filtered;
 });
+
+const getWarehouseName = (warehouseId) => {
+  const warehouse = warehouses.value.find(w => w.id === warehouseId);
+  return warehouse ? warehouse.name : 'Không xác định';
+};
+
+const applyFilters = () => {
+  fetchCategories();
+};
 
 const showAddForm = () => {
   showAddModal.value = true;
@@ -140,26 +191,15 @@ const closeAddModal = () => {
   showAddModal.value = false;
 };
 
-const closeUpdateModal = () => {
-  showUpdateModal.value = false;
-};
-
-const addCategory = async (categoryData) => {
-  try {
-    categoryData.idAdmin = idAdminLogin.value;
-    await addCategoryApi(categoryData);
-    alert('Thêm danh mục thành công!');
-    fetchCategorys();
-    closeAddModal();
-  } catch (error) {
-    console.error('Error adding category:', error);
-    alert('Có lỗi xảy ra khi thêm danh mục.');
-  }
-};
-
 const showUpdateForm = (category) => {
+  console.log(category);
   selectedCategory.value = { ...category };
   showUpdateModal.value = true;
+};
+
+const closeUpdateModal = () => {
+  showUpdateModal.value = false;
+  selectedCategory.value = null;
 };
 
 const updateCategory = async (updatedCategory) => {
@@ -167,7 +207,7 @@ const updateCategory = async (updatedCategory) => {
     updatedCategory.idAdmin = idAdminLogin.value;
     await updateCategoryApi(updatedCategory);
     alert('Cập nhật danh mục thành công!');
-    fetchCategorys();
+    fetchCategories();
     closeUpdateModal();
   } catch (error) {
     console.error('Error updating category:', error);
@@ -176,12 +216,11 @@ const updateCategory = async (updatedCategory) => {
 };
 
 const removeCategory = async (id) => {
-  const confirmDelete = confirm('Bạn có chắc chắn muốn xóa danh mục này?');
-  if (confirmDelete) {
+  if (confirm('Bạn có chắc chắn muốn xóa danh mục này?')) {
     try {
       await deleteCategoryApi(id);
-      alert('Danh mục đã được xóa!');
-      fetchCategorys();
+      categories.value = categories.value.filter(c => c.id !== id);
+      alert('Xóa danh mục thành công!');
     } catch (error) {
       console.error('Error removing category:', error);
       alert('Có lỗi xảy ra khi xóa danh mục.');
@@ -201,58 +240,55 @@ const closeDetail = () => {
 </script>
 
 <style scoped>
-/* General Styles */
 .container {
-  display: flex;
   min-height: 100vh;
-  background: #f0f2f5;
+  background: #f4f6f9;
+  display: flex;
 }
 
 .main-content {
-  flex: 1;
-  margin-left: 260px;
-  padding: 30px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  padding: 2rem;
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px 15px;
-  border-bottom: 1px solid #e8ecef;
-  margin-bottom: 25px;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
 }
 
 .title {
-  color: #2c3e50;
-  font-size: 30px;
+  font-size: 2rem;
+  color: #fff;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  margin: 0;
 }
 
 .stats {
-  color: #7f8c8d;
-  font-size: 16px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
-/* Controls */
 .controls {
-  background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .search-add {
   display: flex;
-  gap: 20px;
-  align-items: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  flex: 1;
 }
 
 .search-wrapper {
@@ -263,142 +299,163 @@ const closeDetail = () => {
 
 .search-icon {
   position: absolute;
-  left: 12px;
   top: 50%;
+  left: 10px;
   transform: translateY(-50%);
-  color: #95a5a6;
+  color: #6c757d;
 }
 
 .search-input {
-  width: 90%;
-  padding: 12px 12px 12px 40px;
-  border: 1px solid #dfe6e9;
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 15px;
-  transition: border-color 0.3s;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
 }
 
 .search-input:focus {
-  border-color: #3498db;
+  border-color: #007bff;
   outline: none;
 }
 
 .add-btn {
-  background: #27ae60;
+  padding: 0.75rem 1.5rem;
+  background: #28a745;
   color: white;
-  padding: 12px 24px;
+  border: none;
   border-radius: 8px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: background 0.3s;
+  gap: 0.5rem;
+  transition: background 0.3s ease;
 }
 
 .add-btn:hover {
-  background: #219653;
+  background: #218838;
 }
 
-/* Table Styles */
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-label {
+  font-size: 1rem;
+  color: #343a40;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.filter-select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
 .category-table-wrapper {
-  background: white;
+  background: #fff;
+  padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
-  margin: 20px 0;
-  overflow-x: auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.table-grid {
-  display: grid;
-  grid-template-columns: 60px 2fr 1fr 220px; /* Điều chỉnh tỷ lệ cột */
-  gap: 0; /* Loại bỏ khoảng cách giữa các ô */
+.category-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .table-header {
-  display: contents;
+  background: #f8f9fa;
 }
 
-.table-row {
-  display: contents;
+.table-header th {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #343a40;
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+}
+
+.table-row:hover {
+  background: #f1f3f5;
 }
 
 .table-cell {
-  background: white;
-  padding: 15px;
-  color: #636e72;
-  font-size: 14px;
-  border-bottom: 1px solid #e8ecef;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 1rem;
+  font-size: 1rem;
+  color: #343a40;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
 }
 
-.table-header .table-cell {
-  background: #f8f9fa;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 15px;
-  border-bottom: 2px solid #e8ecef;
-}
-
-.table-row:hover .table-cell {
-  background: #f8f9fa;
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+.table-cell.action-cell {
+  text-align: center;
 }
 
 .action-cell {
   display: flex;
-  gap: 10px;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .action-btn {
-  padding: 8px;
+  padding: 0.5rem;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.3s;
-  flex: 1;
+  transition: background 0.3s ease;
 }
 
-.action-btn.view-btn {
-  background: #3498db;
+.view-btn {
+  background: #17a2b8;
   color: white;
 }
 
-.action-btn.view-btn:hover {
-  background: #2980b9;
+.view-btn:hover {
+  background: #138496;
 }
 
-.action-btn.edit-btn {
-  background: #f39c12;
+.edit-btn {
+  background: #ffc107;
+  color: #343a40;
+}
+
+.edit-btn:hover {
+  background: #e0a800;
+}
+
+.delete-btn {
+  background: #dc3545;
   color: white;
 }
 
-.action-btn.edit-btn:hover {
-  background: #e08e0b;
-}
-
-.action-btn.delete-btn {
-  background: #e74c3c;
-  color: white;
-}
-
-.action-btn.delete-btn:hover {
-  background: #c0392b;
+.delete-btn:hover {
+  background: #c82333;
 }
 
 .loading {
   text-align: center;
-  padding: 20px;
-  color: #7f8c8d;
+  padding: 2rem;
+  font-size: 1.25rem;
+  color: #6c757d;
 }
 
 .no-results {
   text-align: center;
-  padding: 20px;
-  color: #7f8c8d;
+  padding: 2rem;
+  font-size: 1.25rem;
+  color: #6c757d;
 }
 </style>

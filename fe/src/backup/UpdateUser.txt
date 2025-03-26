@@ -1,0 +1,361 @@
+<template>
+  <div v-if="show" class="modal-overlay" @click.self="close">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Cập nhật thông tin Người dùng</h2>
+        <button @click="close" class="close-btn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form @submit.prevent="handleUpdate" class="form-container">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-id-badge mr-2"></i> ID
+            </label>
+            <input
+              v-model="formData.id"
+              type="text"
+              class="form-input"
+              disabled
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-user mr-2"></i> Họ và tên
+            </label>
+            <input
+              v-model="formData.full_name"
+              type="text"
+              placeholder="Nhập họ và tên"
+              class="form-input"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-envelope mr-2"></i> Email
+            </label>
+            <input
+              v-model="formData.email"
+              type="email"
+              placeholder="Nhập email"
+              class="form-input"
+              />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-phone mr-2"></i> Điện thoại
+            </label>
+            <input
+              v-model="formData.phone"
+              type="text"
+              placeholder="Nhập số điện thoại"
+              class="form-input"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-venus-mars mr-2"></i> Giới tính
+            </label>
+            <select v-model="formData.gender" class="form-input">
+              <option :value="null">Chưa cập nhật</option>
+              <option value="Nam">Nam</option>
+              <option value="Nữ">Nữ</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-user-tag mr-2"></i> Chức vụ
+            </label>
+            <select v-model="formData.role_code" class="form-input">
+              <option value="admin">Quản trị viên</option>
+              <option value="manager">Quản lý kho</option>
+              <option value="staff">Nhân viên</option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="shouldShowWarehouse && roleUser.code == 'admin'">
+            <label class="form-label">
+              <i class="fas fa-warehouse mr-2"></i> Chọn kho
+            </label>
+            <select v-model="formData.warehouse" class="form-select" required>
+              <option value="" disabled>Chọn kho làm việc</option>
+              <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                {{ warehouse.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label">
+              <i class="fas fa-map-marker-alt mr-2"></i> Địa chỉ
+            </label>
+            <input
+              v-model="formData.address"
+              type="text"
+              placeholder="Nhập địa chỉ"
+              class="form-input"
+            />
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label">
+              <i class="fas fa-sticky-note mr-2"></i> Ghi chú
+            </label>
+            <input
+              v-model="formData.note"
+              type="text"
+              placeholder="Nhập ghi chú"
+              class="form-input"
+            />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" @click="close" class="cancel-btn">
+            <i class="fas fa-times mr-2"></i> Hủy
+          </button>
+          <button type="submit" class="submit-btn">
+            <i class="fas fa-save mr-2"></i> Cập nhật
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch, defineProps, defineEmits } from 'vue';
+const roleUser = JSON.parse(localStorage.getItem('roles'))
+const shouldShowWarehouse = roleUser.code == 'admin' ? true : false
+const warehouses = JSON.parse(localStorage.getItem('warehouses'))
+
+const props = defineProps({
+  show: {
+    type: Boolean,
+    default: false,
+  },
+  user: {
+    type: Object,
+    default: () => ({}),
+  },
+});
+
+const emit = defineEmits(['close', 'updateCustomer']);
+
+const formData = ref({
+  id: null,
+  full_name: '',
+  phone: '',
+  address: '',
+  gender: null,
+  email: '',
+  note: '',
+  role_code: '',
+  warehouse: '',
+});
+
+watch(() => props.user, (newUser) => {
+  if (newUser) {
+    formData.value = {
+      id: newUser.id || null,
+      full_name: newUser.full_name || '',
+      phone: newUser.phone || '',
+      address: newUser.address || '',
+      gender: newUser.gender || null,
+      email: newUser.email || '',
+      note: newUser.note || '',
+      role_code: newUser.role_code || '',
+    };
+  }
+}, { immediate: true });
+
+const handleUpdate = () => {
+  const updatedData = {
+    id: formData.value.id,
+    full_name: formData.value.full_name,
+    phone: formData.value.phone,
+    address: formData.value.address,
+    gender: formData.value.gender,
+    email: formData.value.email,
+    note: formData.value.note,
+    role_code: formData.value.role_code,
+  };
+  emit('updateCustomer', updatedData);
+};
+
+const close = () => {
+  emit('close');
+};
+</script>
+
+<style scoped>
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease;
+}
+
+.modal-header {
+  background: #f39c12;
+  padding: 20px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  margin: 0;
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: white;
+  transition: transform 0.3s;
+}
+
+.modal-close-btn:hover {
+  transform: rotate(90deg);
+  color: #ecf0f1;
+}
+
+.form-container {
+  padding: 25px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: span 2;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.form-label i {
+  color: #f39c12;
+  margin-right: 8px;
+}
+
+.form-input {
+  padding: 12px;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  border-color: #f39c12;
+  outline: none;
+  box-shadow: 0 0 5px rgba(243, 156, 18, 0.3);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-btn {
+  background: #ecf0f1;
+  color: #2c3e50;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.cancel-btn:hover {
+  background: #dfe6e9;
+}
+
+.submit-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.submit-btn:hover {
+  background: #219653;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+</style>

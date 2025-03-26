@@ -48,32 +48,32 @@
             ></textarea>
         </div>
 
-        <div class="form-group">
+        <div style="display: none;" class="form-group">
             <label for="idManager" class="form-label">
             <i class="fas fa-user-tie mr-2"></i> Người quản lý
             </label>
             <div class="select-wrapper">
-            <input
-                type="text"
-                v-model="managerSearch"
-                class="search-manager-input"
-                placeholder="Tìm kiếm người quản lý..."
-                @focus="showDropdown = true"
-                @blur="hideDropdownWithDelay"
-            />
-            <div v-if="showDropdown" class="manager-dropdown">
-                <div
-                v-for="manager in filteredManagers"
-                :key="manager.id"
-                @click="selectManager(manager)"
-                class="manager-option"
-                >
-                {{ manager.full_name }} ({{ manager.role }})
+                <input
+                    type="text"
+                    v-model="managerSearch"
+                    class="search-manager-input"
+                    placeholder="Tìm kiếm người quản lý..."
+                    @focus="showDropdown = true"
+                    @blur="hideDropdownWithDelay"
+                />
+                <div v-if="showDropdown" class="manager-dropdown">
+                    <div
+                        v-for="manager in filteredManagers"
+                        :key="manager.id"
+                        @click="selectManager(manager)"
+                        class="manager-option"
+                    >
+                    {{ manager.full_name }} ({{ manager.role }})
+                    </div>
+                    <div v-if="filteredManagers.length === 0" class="no-results">
+                    Không tìm thấy người quản lý
+                    </div>
                 </div>
-                <div v-if="filteredManagers.length === 0" class="no-results">
-                Không tìm thấy người quản lý
-                </div>
-            </div>
             </div>
         </div>
 
@@ -109,7 +109,6 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'updated']);
 
-// Khởi tạo editedWarehouse với giá trị mặc định
 const editedWarehouse = ref({
     id: null,
     name: "",
@@ -121,6 +120,7 @@ const editedWarehouse = ref({
 const managers = ref([]);
 const managerSearch = ref("");
 const showDropdown = ref(false);
+const selectIdManager = ref(null);
 
 // Cập nhật editedWarehouse khi props.warehouse thay đổi
 watch(() => props.warehouse, (newWarehouse) => {
@@ -136,14 +136,9 @@ watch(() => props.warehouse, (newWarehouse) => {
 onMounted(async () => {
     try {
         const response = await getAllUserWithRoleApi();
-        // if (response && response.data) {
-        // managers.value = response.data.filter(user => user.role === "manager");
-        managers.value = response.data.filter(user => user.role_code === "manager" || user.role_code === "staff" || user.role_id === 2 || user.role_id === 3);
-            console.log("Managers loaded:", managers.value);
-        // } else {
-        //     console.error("Invalid response structure:", response);
-        //     managers.value = [];
-        // }
+        managers.value = response.data.filter(user => user.role_code === "manager");
+        // managers.value = response.data.filter(user => user.role_code === "manager" || user.role_code === "staff" || user.role_id === 2 || user.role_id === 3);
+
     } catch (error) {
     console.error("Error fetching managers:", error);
     managers.value = [];
@@ -153,13 +148,13 @@ onMounted(async () => {
 const filteredManagers = computed(() => {
     const query = managerSearch.value.toLowerCase();
     return managers.value.filter(manager =>
-        // manager.full_name.toLowerCase().includes(query) || manager.email.toLowerCase().includes(query)
         manager.full_name.toLowerCase().includes(query)
     );
 });
 
 const selectManager = (manager) => {
     editedWarehouse.value.idManager = manager.id;
+    selectIdManager.value = manager.id;
     managerSearch.value = manager.full_name;
     showDropdown.value = false;
 };
@@ -172,22 +167,28 @@ const hideDropdownWithDelay = () => {
 
 const submitEdit = async () => {
     try {
-    const payload = {
-        id: editedWarehouse.value.id,
-        name: editedWarehouse.value.name,
-        address: editedWarehouse.value.address,
-        description: editedWarehouse.value.description || null,
-        idManager: editedWarehouse.value.idManager || null,
-    };
-    await updateWarehouseApi(payload);
-    alert("Thông tin kho đã được cập nhật thành công!");
-    emit('updated');
-    closeModal();
+        const payload = {
+            id: editedWarehouse.value.id,
+            name: editedWarehouse.value.name,
+            address: editedWarehouse.value.address,
+            description: editedWarehouse.value.description || null,
+        };
+
+        // Chỉ thêm idManager nếu nó đã được thay đổi
+        if (editedWarehouse.value.idManager !== null) {
+            payload.idManager = editedWarehouse.value.idManager;
+        }
+
+        await updateWarehouseApi(payload);
+        alert("Thông tin kho đã được cập nhật thành công!");
+        emit('updated');
+        closeModal();
     } catch (error) {
-    console.error("Error updating warehouse:", error);
-    alert("Có lỗi xảy ra khi cập nhật kho!");
+        console.error("Error updating warehouse:", error);
+        alert("Có lỗi xảy ra khi cập nhật kho!");
     }
 };
+
 
 const closeModal = () => {
     emit('close');
@@ -276,7 +277,7 @@ i {
 }
 
 .form-input {
-    width: 100%;
+    width: 90%;
     padding: 12px;
     border: 1px solid #dfe6e9;
     border-radius: 8px;
@@ -291,7 +292,7 @@ i {
 }
 
 .form-textarea {
-    width: 100%;
+    width: 90%;
     padding: 12px;
     border: 1px solid #dfe6e9;
     border-radius: 8px;
@@ -313,7 +314,7 @@ i {
 }
 
 .search-manager-input {
-    width: 100%;
+    width: 90%;
     padding: 12px;
     border: 1px solid #dfe6e9;
     border-radius: 8px;
