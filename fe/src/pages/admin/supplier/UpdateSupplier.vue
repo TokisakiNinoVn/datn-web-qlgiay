@@ -116,6 +116,7 @@ const formData = ref({
   phone: '',
   email: '',
   address: '',
+  warehouse_id: '',
 });
 
 // Theo dõi props.supplier để cập nhật formData
@@ -124,10 +125,11 @@ watch(() => props.supplier, (newStaff) => {
     formData.value = {
       id: newStaff.id || null,
       name: newStaff.name || '',
-      contactPerson: newStaff.contact_person || '', // Chuyển từ contact_person thành contactPerson khi gửi
+      contactPerson: newStaff.contact_person || '',
       phone: newStaff.phone || '',
       email: newStaff.email || '',
       address: newStaff.address || '',
+      warehouse_id: newStaff.warehouse_id || '',
     };
   } else {
     formData.value = {
@@ -137,6 +139,7 @@ watch(() => props.supplier, (newStaff) => {
       phone: '',
       email: '',
       address: '',
+      warehouse_id: '',
     };
   }
 }, { immediate: true });
@@ -150,6 +153,7 @@ const handleUpdate = () => {
     phone: formData.value.phone,
     email: formData.value.email,
     address: formData.value.address,
+    warehouse_id: formData.value.warehouse_id,
   };
   emit('updateSupplier', updatedData);
 };

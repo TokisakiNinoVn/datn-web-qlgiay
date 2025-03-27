@@ -94,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import SupplierDetail from './DetailSupplier.vue';
 import SupplierAdd from './AddSupplier.vue';
@@ -105,6 +105,7 @@ import {
   deleteSupplierApi
 } from '@/services/modules/supplier.api';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
 const warehouses = ref([]);
@@ -201,7 +202,7 @@ const addSupplier = (newSupplier) => {
 };
 
 const showUpdateForm = (supplier) => {
-  selectedSupplier.value = { ...supplier };
+  selectedSupplier.value = { ...supplier, warehouse_id: supplier.warehouse_id };
   showUpdateModal.value = true;
 };
 
@@ -213,25 +214,41 @@ const closeUpdateModal = () => {
 const updateSupplier = async (updatedSupplier) => {
   try {
     updatedSupplier.idAdmin = idAdminLogin.value;
-    await updateSupplierApi(updatedSupplier);
-    alert('Cập nhật nhà cung cấp thành công!');
-    fetchSuppliers();
-    closeUpdateModal();
+    const response = await updateSupplierApi(updatedSupplier);
+
+    if (response.data.code === 200) {
+      suppliers.value = suppliers.value.map(s =>
+        s.id === updatedSupplier.id ? updatedSupplier : s
+      );
+      showNotification('Cập nhật nhà cung cấp thành công!', 'success');
+      fetchSuppliers();
+      closeUpdateModal();
+    } else {
+      showNotification('Cập nhật nhà cung cấp không thành công!', 'error');
+    }
   } catch (error) {
-    console.error('Error updating supplier:', error);
-    alert('Có lỗi xảy ra khi cập nhật nhà cung cấp.');
+    console.error('Lỗi khi cập nhật nhà cung cấp:', error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || 'Cập nhật nhà cung cấp thất bại!';
+      showNotification(`Lỗi: ${errorMessage}`, 'error');
+    } else {
+      showNotification('Có lỗi xảy ra khi cập nhật nhà cung cấp.', 'error');
+    }
   }
 };
+
 
 const removeSupplier = async (id) => {
   if (confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?')) {
     try {
       await deleteSupplierApi(id);
       suppliers.value = suppliers.value.filter(s => s.id !== id);
-      alert('Xóa nhà cung cấp thành công!');
+      showNotification('Xóa nhà cung cấp thành công!', 'success');
+      fetchSuppliers();
     } catch (error) {
       console.error('Error removing supplier:', error);
-      alert('Có lỗi xảy ra khi xóa nhà cung cấp.');
+      showNotification('Xóa nhà cung cấp không thành công!', 'error');
     }
   }
 };
@@ -244,6 +261,17 @@ const viewSupplier = (supplier) => {
 const closeDetail = () => {
   showDetail.value = false;
   supplierDetail.value = null;
+};
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

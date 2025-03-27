@@ -133,11 +133,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { useRouter } from 'vue-router';
 import { addProductApi, getForAddApi } from '@/services/modules/product.api';
 import { uploadNormalApi } from '@/services/modules/upload.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const router = useRouter();
 const dataUser = JSON.parse(localStorage.getItem('user'))
@@ -212,19 +213,43 @@ const handleImageUpload = async () => {
 };
 
 const submitProduct = async () => {
-    try {
-        const uploadedImageUrl = await handleImageUpload();
-        if (!uploadedImageUrl) return;
+  try {
+    const uploadedImageUrl = await handleImageUpload();
+    if (!uploadedImageUrl) return;
 
-        product.value.imageUrl = uploadedImageUrl;
+    product.value.imageUrl = uploadedImageUrl;
 
-        await addProductApi(product.value);
-        alert('Thêm sản phẩm thành công!');
-        router.push('/product-management');
-    } catch (error) {
-    console.error('Lỗi khi thêm sản phẩm:', error);
-    alert('Có lỗi xảy ra, vui lòng thử lại!');
+    const response = await addProductApi(product.value);
+
+    if (response.data.code === 201) {
+      showNotification("Thêm sản phẩm thành công!", "success");
+      router.push("/product-management");
+    } else {
+      showNotification("Thêm sản phẩm không thành công!", "error");
     }
+  } catch (error) {
+    console.error("Lỗi khi thêm sản phẩm:", error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || "Thêm sản phẩm thất bại!";
+      showNotification(`Lỗi: ${errorMessage}`, "error");
+    } else {
+      showNotification("Có lỗi xảy ra, vui lòng thử lại!", "error");
+    }
+  }
+};
+
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

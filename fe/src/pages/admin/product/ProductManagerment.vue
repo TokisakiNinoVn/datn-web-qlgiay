@@ -177,13 +177,13 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getAllProductApi, deleteProductApi } from '@/services/modules/product.api';
 import { getForAddApi } from '@/services/modules/product.api';
 import instance from '@/services/axiosConfig';
 import * as XLSX from "xlsx";
-// import FileSaver from "file-saver";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles'));
 
@@ -316,11 +316,18 @@ const removeProduct = async (id) => {
       await deleteProductApi(id);
       products.value = products.value.filter(c => c.id !== id);
       originalProducts.value = originalProducts.value.filter(c => c.id !== id);
-      alert('Xóa sản phẩm thành công!');
+      showNotification('Xóa sản phẩm thành công!', 'success');
+      // alert('Xóa sản phẩm thành công!');
       applyFiltersAndSearch();
     } catch (error) {
       console.error('Error removing product:', error);
-      alert('Có lỗi xảy ra khi xóa sản phẩm.');
+      // alert('Có lỗi xảy ra khi xóa sản phẩm.');
+      if (error.response && error.response.status === 400) {
+        const errorMessage = error.response.data?.message || "Có lỗi xảy ra khi xóa sản phẩm.!";
+        showNotification(`Lỗi: ${errorMessage}`, "error");
+      } else {
+        showNotification("Có lỗi xảy ra, vui lòng thử lại!", "error");
+      }
     }
   }
 };
@@ -392,6 +399,18 @@ const exportToExcel = () => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
   XLSX.writeFile(workbook, 'products.xlsx');
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

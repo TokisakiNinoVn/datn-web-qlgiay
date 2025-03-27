@@ -44,7 +44,7 @@
             id="description"
             v-model="editedWarehouse.description"
             class="form-textarea"
-            placeholder="Nhập mô tả kho"
+            placeholder="Nhập các mô tả kho (nếu có)"
             ></textarea>
         </div>
 
@@ -91,10 +91,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, createApp } from "vue";
 import { updateWarehouseApi } from "@/services/modules/warehouse.api";
 import { getAllUserWithRoleApi } from "@/services/modules/user.api";
 import { defineProps, defineEmits } from "vue";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const props = defineProps({
     warehouse: {
@@ -166,32 +167,55 @@ const hideDropdownWithDelay = () => {
 };
 
 const submitEdit = async () => {
-    try {
-        const payload = {
-            id: editedWarehouse.value.id,
-            name: editedWarehouse.value.name,
-            address: editedWarehouse.value.address,
-            description: editedWarehouse.value.description || null,
-        };
+  try {
+    const payload = {
+      id: editedWarehouse.value.id,
+      name: editedWarehouse.value.name?.trim(),
+      address: editedWarehouse.value.address?.trim(),
+      description: editedWarehouse.value.description?.trim() || null,
+    };
 
-        // Chỉ thêm idManager nếu nó đã được thay đổi
-        if (editedWarehouse.value.idManager !== null) {
-            payload.idManager = editedWarehouse.value.idManager;
-        }
-
-        await updateWarehouseApi(payload);
-        alert("Thông tin kho đã được cập nhật thành công!");
-        emit('updated');
-        closeModal();
-    } catch (error) {
-        console.error("Error updating warehouse:", error);
-        alert("Có lỗi xảy ra khi cập nhật kho!");
+    // Chỉ thêm idManager nếu nó đã được thay đổi
+    if (editedWarehouse.value.idManager !== null) {
+      payload.idManager = editedWarehouse.value.idManager;
     }
+
+    const response = await updateWarehouseApi(payload);
+
+    if (response.data.code === 200) {
+      showNotification("Thông tin kho đã được cập nhật thành công!", "success");
+      emit("updated");
+      closeModal();
+    } else {
+      showNotification("Cập nhật kho không thành công!", "error");
+    }
+  } catch (error) {
+    console.error("Error updating warehouse:", error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || "Cập nhật kho thất bại!";
+      showNotification(`Lỗi: ${errorMessage}`, "error");
+    } else {
+      showNotification("Có lỗi xảy ra khi cập nhật kho!", "error");
+    }
+  }
 };
 
 
 const closeModal = () => {
     emit('close');
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

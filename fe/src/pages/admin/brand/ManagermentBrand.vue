@@ -100,6 +100,7 @@ import BrandUpdate from './UpdateBrand.vue';
 import {
   getAllBrandApi,
   deleteBrandApi,
+  updateBrandApi
 } from '@/services/modules/brand.api';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 import NotificationComponent from '@/components/NotificationComponent.vue';
@@ -209,13 +210,40 @@ const closeUpdateModal = () => {
   selectedBrand.value = null;
 };
 
-const updateBrand = (updatedBrand) => {
-  const index = brands.value.findIndex(b => b.id === updatedBrand.id);
-  if (index !== -1) {
-    brands.value[index] = { ...updatedBrand };
+const updateBrand = async (updatedBrand) => {
+  try {
+    const index = brands.value.findIndex(b => b.id === updatedBrand.id);
+    if (index !== -1) {
+      brands.value[index] = { ...updatedBrand };
+    }
+
+    const data = {
+      id: updatedBrand.id,
+      name: updatedBrand.name?.trim(),
+      warehouse_id: updatedBrand.warehouse_id,
+    };
+
+    // Gọi API cập nhật thương hiệu
+    const response = await updateBrandApi(data);
+
+    if (response.data.code === 200) {
+      showNotification("Cập nhật thương hiệu thành công!", "success");
+      closeUpdateModal();
+    } else {
+      showNotification("Cập nhật thương hiệu không thành công!", "error");
+    }
+  } catch (error) {
+    console.error("Error updating brand:", error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || "Cập nhật thương hiệu thất bại!";
+      showNotification(`Lỗi: ${errorMessage}`, "error");
+    } else {
+      showNotification("Có lỗi xảy ra khi cập nhật thương hiệu!", "error");
+    }
   }
-  closeUpdateModal();
 };
+
 
 const removeBrand = async (id) => {
   if (confirm('Bạn có chắc chắn muốn xóa thương hiệu này?')) {
@@ -324,7 +352,7 @@ const closeDetail = () => {
 }
 
 .search-input {
-  width: 100%;
+  width: 80%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
   border: 1px solid #ddd;
   border-radius: 8px;

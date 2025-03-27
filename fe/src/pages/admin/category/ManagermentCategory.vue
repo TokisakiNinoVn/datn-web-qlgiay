@@ -193,7 +193,7 @@ const closeAddModal = () => {
 };
 
 const showUpdateForm = (category) => {
-  console.log(category);
+  // console.log(category);
   selectedCategory.value = { ...category };
   showUpdateModal.value = true;
 };

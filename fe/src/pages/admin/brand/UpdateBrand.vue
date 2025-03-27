@@ -56,10 +56,7 @@ const emit = defineEmits(['close', 'updateBrand']);
 const formData = ref({
   id: null,
   name: '',
-  contactPerson: '',
-  phone: '',
-  email: '',
-  address: '',
+  warehouse_id: '',
 });
 
 // Theo dõi props.brand để cập nhật formData
@@ -67,12 +64,14 @@ watch(() => props.brand, (newStaff) => {
   if (newStaff) {
     formData.value = {
       id: newStaff.id || null,
-      name: newStaff.name || ''
+      name: newStaff.name || '',
+      warehouse_id: newStaff.warehouse_id || '',
     };
   } else {
     formData.value = {
       id: null,
-      name: ''
+      name: '',
+      warehouse_id: '',
     };
   }
 }, { immediate: true });
@@ -82,6 +81,7 @@ const handleUpdate = () => {
   const updatedData = {
     id: formData.value.id,
     name: formData.value.name,
+    warehouse_id: props.brand.warehouse_id,
   };
   emit('updateBrand', updatedData);
 };

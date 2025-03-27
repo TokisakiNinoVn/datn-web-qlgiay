@@ -1,4 +1,6 @@
 const db = require('../config/db.config');
+const { HTTP_STATUS } = require('../constants/status-code.js');
+const AppError = require('../utils/app-error.js');
 
 //Thêm nhà cung cấp
 exports.addSupplier = async (req, res, next) => { 
@@ -49,22 +51,55 @@ exports.addSupplier = async (req, res, next) => {
 
 //Cập nhật thông tin nhà cung cấp
 exports.updateSupplier = async (req, res, next) => { 
-    const { id, name, contactPerson, phone, email, address } = req.body;
+    const { id, name, contactPerson, phone, email, address, warehouse_id } = req.body;
+    const warehouseId = req.user.warehouses[0];
+    // const { name, contact_person, phone, email, address, warehouse_id } = req.body;
+    const role = req.user.role;
     try {
-        const [supplierCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE id = ?', [id]);
-        if (supplierCheck.length === 0) {
-            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Nhà cung cấp không tồn tại', []), req, res, next);
-        }
+        if (role === 'admin') { 
+            // Kiểm tra nhà cung cấp có tồn tại không
+            const [supplierCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE id = ?', [id]);
+            if (supplierCheck.length === 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Nhà cung cấp không tồn tại', []), req, res, next);
+            }
 
-        const updatedAt = new Date();
-        await db.pool.execute('UPDATE suppliers SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, updateAt = ? WHERE id = ?', [name, contactPerson, phone, email, address, updatedAt, id]);
-        const supplier = { id, name, contactPerson, phone, email, address, updatedAt };
-        res.status(200).json({
-            code: 200,
-            status: 'success',
-            data: supplier,
-            message: 'Cập nhật thông tin nhà cung cấp thành công',
-        });
+            // Kiểm tra tên nhà cung cấp đã tồn tại chưa
+            const [nameCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE name = ? AND warehouse_id = ? AND id != ?', [name, warehouse_id, id]);
+            if (nameCheck.length > 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên nhà cung cấp đã tồn tại', []), req, res, next);
+            }
+
+            const updatedAt = new Date();
+            await db.pool.execute('UPDATE suppliers SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, updateAt = ? WHERE id = ?', [name, contactPerson, phone, email, address, updatedAt, id]);
+            const supplier = { id, name, contactPerson, phone, email, address, updatedAt };
+            res.status(200).json({
+                code: 200,
+                status: 'success',
+                data: supplier,
+                message: 'Cập nhật thông tin nhà cung cấp thành công',
+            });
+        } else {
+            const [supplierCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE id = ?', [id]);
+            if (supplierCheck.length === 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Nhà cung cấp không tồn tại', []), req, res, next);
+            }
+
+            // Kiểm tra tên nhà cung cấp đã tồn tại chưa
+            const [nameCheck] = await db.pool.execute('SELECT * FROM suppliers WHERE name = ? AND warehouse_id = ? AND id != ?', [name, warehouseId, id]);
+            if (nameCheck.length > 0) {
+                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên nhà cung cấp đã tồn tại', []), req, res, next);
+            }
+    
+            const updatedAt = new Date();
+            await db.pool.execute('UPDATE suppliers SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, updateAt = ? WHERE id = ?', [name, contactPerson, phone, email, address, updatedAt, id]);
+            const supplier = { id, name, contactPerson, phone, email, address, updatedAt };
+            res.status(200).json({
+                code: 200,
+                status: 'success',
+                data: supplier,
+                message: 'Cập nhật thông tin nhà cung cấp thành công',
+            });
+        }
     } catch (error) {
         console.error('Error in updateSupplier function:', error);
         res.status(500).json({ error: error.message });

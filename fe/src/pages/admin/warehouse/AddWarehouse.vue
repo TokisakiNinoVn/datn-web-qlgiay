@@ -46,7 +46,7 @@
                         id="description"
                         v-model="warehouse.description"
                         class="form-textarea"
-                        placeholder="Nhập mô tả kho"
+                        placeholder="Nhập các mô tả kho: diện tích, v.v."
                     ></textarea>
                 </div>
 
@@ -101,11 +101,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed, createApp } from "vue";
 import Navbar from "@/components/NavbarComponent.vue";
 import { createWarehouseApi } from "@/services/modules/warehouse.api";
 import { getAllUserWithRoleApi } from "@/services/modules/user.api";
 import { useRouter } from "vue-router";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const router = useRouter();
 const warehouse = ref({
@@ -167,26 +168,45 @@ const hideDropdownWithDelay = () => {
 };
 
 const submitRoom = async () => {
-    // if (!warehouse.value.idManager) {
-    //     alert("Người quản lý không được để trống!");
-    //     return;
-    // }
-    try {
-        const payload = {
-            name: warehouse.value.name,
-            address: warehouse.value.address,
-            description: warehouse.value.description || null,
-            idManager: warehouse.value.idManager,
-        };
-        await createWarehouseApi(payload);
-        alert("Kho hàng đã được thêm thành công!");
-        router.push("/warehouse-management");
-    } catch (error) {
-        console.error("Lỗi khi thêm kho:", error);
-        alert("Lỗi: " + error.response.data.message);
+  try {
+    const payload = {
+      name: warehouse.value.name?.trim(),
+      address: warehouse.value.address?.trim(),
+      description: warehouse.value.description?.trim() || null,
+      idManager: warehouse.value.idManager,
+    };
+
+    const response = await createWarehouseApi(payload);
+
+    if (response.data.code === 201) {
+      showNotification("Kho hàng đã được thêm thành công!", "success");
+      router.push("/warehouse-management");
+    } else {
+      showNotification("Thêm kho hàng không thành công!", "error");
     }
+  } catch (error) {
+    console.error("Lỗi khi thêm kho:", error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || "Thêm kho hàng thất bại!";
+      showNotification(`Lỗi: ${errorMessage}`, "error");
+    } else {
+      showNotification("Đã xảy ra lỗi, vui lòng thử lại!", "error");
+    }
+  }
 };
 
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>

@@ -4,7 +4,20 @@ const AppError = require('../utils/app-error.js');
 //Thêm sản phẩm
 exports.addProduct = async (req, res, next) => { 
     const {
-        warehouseId, supplierId, categoryId, brandId, productName, price, stockQuantity, size, color, description, material, discount, imageUrl, discountType
+        warehouseId,
+        supplierId,
+        categoryId,
+        brandId,
+        productName,
+        price,
+        stockQuantity,
+        size,
+        color,
+        description,
+        material,
+        discount,
+        imageUrl,
+        discountType
     } = req.body;
 
     try {
@@ -14,6 +27,14 @@ exports.addProduct = async (req, res, next) => {
         );
         if (productCheck.length > 0) {
             return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Sản phẩm đã tồn tại', []), req, res, next);
+        }
+
+        // Kiểm tra trùng lặp tên sản phẩm trong cùng 1 kho
+        const [productCheckName] = await db.pool.execute(
+            'SELECT * FROM products WHERE product_name = ? AND warehouse_id = ?', [productName, warehouseId]
+        );
+        if (productCheckName.length > 0) {
+            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên sản phẩm đã tồn tại', []), req, res, next);
         }
 
         const createdAt = new Date();

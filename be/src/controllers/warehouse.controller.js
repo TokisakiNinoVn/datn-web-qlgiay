@@ -45,11 +45,17 @@ exports.createWarehouse = async (req, res, next) => {
 //Cập nhật thông tin kho
 exports.updateWarehouse = async (req, res, next) => { 
     const { id, name, address, description, idManager } = req.body;
-    console.log(req.body);
+    // console.log(req.body);
     try {
         const [warehouseCheck] = await db.pool.execute('SELECT * FROM warehouses WHERE id = ?', [id]);
         if (warehouseCheck.length === 0) {
             return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Kho không tồn tại', []), req, res, next);
+        }
+
+        // Kiểm tra xem tên kho đã tồn tại chưa
+        const [nameCheck] = await db.pool.execute('SELECT * FROM warehouses WHERE name = ? AND id != ?', [name, id]);
+        if (nameCheck.length > 0) {
+            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên kho đã tồn tại', []), req, res, next);
         }
 
         const updatedAt = new Date();

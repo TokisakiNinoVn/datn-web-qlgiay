@@ -167,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, createApp } from "vue";
 // import { useRouter } from "vue-router";
 import Navbar from "@/components/NavbarComponent.vue";
 import WarehouseDetails from "./WarehouseDetail.vue";
@@ -177,8 +177,8 @@ import {
   updateWarehouseApi,
   deleteWarehouseApi
 } from "@/services/modules/warehouse.api";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
-// const router = useRouter();
 const listWarehouse = ref([]);
 const searchQuery = ref("");
 const viewMode = ref("grid");
@@ -232,7 +232,7 @@ const closeDetails = () => {
 };
 
 const editWarehouse = (warehouse) => {
-  warehouseToEdit.value = { ...warehouse }; // Clone để không ảnh hưởng dữ liệu gốc
+  warehouseToEdit.value = { ...warehouse };
   isEditVisible.value = true;
 };
 
@@ -244,12 +244,14 @@ const closeEdit = () => {
 const updateWarehouse = async (updatedWarehouse) => {
   try {
     await updateWarehouseApi(updatedWarehouse.id, updatedWarehouse);
-    alert("Cập nhật kho hàng thành công!");
+    // showNotification("Cập nhật kho hàng thành công!", "success");
+    // alert("Cập nhật kho hàng thành công!");
     await fetchListWarehouse(); // Refresh danh sách
     closeEdit();
   } catch (error) {
     console.error("Error updating warehouse:", error);
-    alert("Có lỗi xảy ra khi cập nhật kho!");
+    // alert("Có lỗi xảy ra khi cập nhật kho!");
+    showNotification("Có lỗi xảy ra khi cập nhật kho!", "error");
   }
 };
 
@@ -257,17 +259,30 @@ const deleteWarehouse = async (warehouse) => {
   if (confirm(`Bạn có chắc muốn xóa kho "${warehouse.name}" không? \nCác dữ liệu liên quan cũng sẽ bị xóa đồng thời!`)) {
     try {
       await deleteWarehouseApi(warehouse.id);
-      alert("Xóa kho hàng thành công!");
+      showNotification("Xóa kho hàng thành công!", "success");
+      // alert("Xóa kho hàng thành công!");
       await fetchListWarehouse(); // Refresh danh sách
     } catch (error) {
       console.error("Error deleting warehouse:", error);
-      alert("Có lỗi xảy ra khi xóa kho!");
+      // alert("Có lỗi xảy ra khi xóa kho!");
+      showNotification("Có lỗi xảy ra khi xóa kho!", "error");
     }
   }
 };
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('vi-VN');
+};
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

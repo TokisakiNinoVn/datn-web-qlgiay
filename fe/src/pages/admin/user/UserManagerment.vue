@@ -64,7 +64,7 @@
               <th class="table-cell">Chức vụ</th>
               <th class="table-cell">Điện thoại</th>
               <th class="table-cell">Địa chỉ</th>
-              <th v-if="roleUser.code === 'admin'" class="table-cell">Kho</th>
+              <!-- <th v-if="roleUser.code === 'admin'" class="table-cell">Kho</th> -->
               <th class="table-cell">Thao tác</th>
             </tr>
           </thead>
@@ -75,7 +75,7 @@
               <td class="table-cell">{{ user.role || 'Chưa có thông tin' }}</td>
               <td class="table-cell">{{ user.phone || 'Chưa có thông tin' }}</td>
               <td class="table-cell">{{ user.address || 'Chưa có thông tin' }}</td>
-              <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseNames(user.warehouses) }}</td>
+              <!-- <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseNames(user.warehouses) }}</td> -->
               <td class="table-cell action-cell">
                 <button 
                   @click="viewCustomer(user)" 
@@ -176,8 +176,7 @@ const fetchCustomers = async () => {
 const fetchWarehouse = async () => {
   try {
     const response = await getListSimpleWarehouseApi();
-    warehouses.value = Array.isArray(response.data.data) ? response.data.data : [];
-    console.log('Warehouses:', warehouses.value);
+    warehouses.value = response.data.data ? response.data.data : [];
   } catch (error) {
     console.error('Error fetching warehouse:', error);
     showNotification(`Có lỗi xảy ra khi lấy danh sách kho hàng: ${error}`, 'error');
@@ -199,20 +198,13 @@ const filterByRole = (roleCode) => {
 
 const applyFiltersAndSearch = () => {
   let filtered = [...originalCustomers.value];
-
-  // Lọc theo vai trò
   if (selectedRole.value) {
     filtered = filtered.filter(user => user.role_code === selectedRole.value);
   }
 
-  // Lọc theo kho (chỉ áp dụng cho admin)
   if (roleUser.code === 'admin' && selectedWarehouseId.value) {
-    filtered = filtered.filter(user => 
-      user.warehouses && user.warehouses.includes(selectedWarehouseId.value)
-    );
+    filtered = filtered.filter(user => Number(user.warehouse_id) === Number(selectedWarehouseId.value));
   }
-
-  // Lọc theo từ khóa tìm kiếm
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(user => (
@@ -221,7 +213,7 @@ const applyFiltersAndSearch = () => {
       user.phone?.toLowerCase().includes(query)
     ));
   }
-
+  
   users.value = filtered;
   if (!filtered.length && (searchQuery.value || selectedRole.value || selectedWarehouseId.value)) {
     showNotification('Không tìm thấy người dùng nào.', 'error');
@@ -232,14 +224,14 @@ const searchCustomer = () => {
   applyFiltersAndSearch();
 };
 
-const getWarehouseNames = (warehouseIds) => {
-  if (!warehouseIds || warehouseIds.length === 0) return 'Không xác định';
-  const names = warehouseIds.map(id => {
-    const warehouse = warehouses.value.find(w => w.id === id);
-    return warehouse ? warehouse.name : 'Không xác định';
-  });
-  return names.join(', ');
-};
+// const getWarehouseNames = (warehouseIds) => {
+//   if (!warehouseIds || warehouseIds.length === 0) return 'Không xác định';
+//   const names = warehouseIds.map(id => {
+//     const warehouse = warehouses.value.find(w => w.id === id);
+//     return warehouse ? warehouse.name : 'Không xác định';
+//   });
+//   return names.join(', ');
+// };
 
 const removeCustomer = async (id) => {
   if (confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {

@@ -46,6 +46,7 @@
               placeholder="Nhập số điện thoại"
               class="form-input"
               required
+              disabled
             />
           </div>
 

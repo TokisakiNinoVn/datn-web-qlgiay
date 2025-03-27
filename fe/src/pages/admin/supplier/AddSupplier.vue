@@ -108,10 +108,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, createApp } from 'vue';
 import { defineProps, defineEmits } from 'vue';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 import { addSupplierApi } from '@/services/modules/supplier.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
 const warehouses = ref([]);
@@ -158,21 +159,35 @@ const handleAdd = async () => {
   isSubmitting.value = true;
   try {
     const supplierData = { ...formData.value };
+
     if (roleUser.code !== 'admin') {
       delete supplierData.warehouse_id; // Xóa warehouse_id nếu không phải admin
     }
+
     const response = await addSupplierApi(supplierData);
-    emit('addSupplier', response.data); // Giả sử API trả về dữ liệu nhà cung cấp vừa thêm
-    alert('Thêm nhà cung cấp thành công!');
-    resetForm();
-    close();
+
+    if (response.data.code === 201) {
+      showNotification('Thêm nhà cung cấp thành công!', 'success');
+      emit('addSupplier', response.data);
+      resetForm();
+      close();
+    } else {
+      showNotification('Thêm nhà cung cấp không thành công!', 'error');
+    }
   } catch (error) {
     console.error('Lỗi khi thêm nhà cung cấp:', error);
-    alert('Thêm nhà cung cấp thất bại!');
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || 'Thêm nhà cung cấp thất bại!';
+      showNotification(`Lỗi: ${errorMessage}`, 'error');
+    } else {
+      showNotification('Lỗi khi thêm nhà cung cấp!', 'error');
+    }
   } finally {
     isSubmitting.value = false;
   }
 };
+
 
 // Reset form sau khi submit
 const resetForm = () => {
@@ -197,6 +212,18 @@ onMounted(() => {
     fetchWarehouse();
   }
 });
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>

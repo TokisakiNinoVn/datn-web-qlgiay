@@ -316,31 +316,39 @@ exports.filter = async (req, res, next) => {
 
 exports.getAllUsersSimple = async (req, res, next) => {
   const { role, warehouses } = req.user;
-  // console.log('req:', req.user);
   try {
     if (role === null || role === undefined || warehouses === null || warehouses === undefined) {
       return res.status(403).json({ message: "Không có quyền truy cập." });
     }
     if (role === 'admin') {
-      // Truy vấn lấy thông tin user kèm role name và role code
       const sql = `
-        SELECT 
-          users.id, 
-          users.full_name, 
-          users.phone, 
-          users.address, 
-          users.gender, 
-          users.email, 
-          users.note,
-          roles.name AS role, 
-          roles.code AS role_code
-        FROM users
-        LEFT JOIN roles ON users.role_id = roles.id;
-      `;
-
+          SELECT 
+              users.id, 
+              users.full_name, 
+              users.phone, 
+              users.address, 
+              users.gender, 
+              users.email, 
+              users.note,
+              roles.name AS role, 
+              roles.code AS role_code,
+              warehouse_user.warehouse_id
+          FROM users
+          LEFT JOIN roles ON users.role_id = roles.id
+          LEFT JOIN warehouse_user ON users.id = warehouse_user.user_id
+          `;
+          // WHERE users.id != 1;
+    
       const [users] = await db.pool.execute(sql);
-      res.json(users);
-    } else {
+    
+      const formattedUsers = users.map(user => ({
+          ...user,
+          warehouse_id: user.warehouse_id ? Number(user.warehouse_id) : null
+      }));
+    
+      res.json(formattedUsers);
+    }
+     else {
       const warehouseId = warehouses[0];
       const sql = `
         SELECT 

@@ -138,13 +138,14 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, createApp } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getDetailsProductByIdApi } from '@/services/modules/product.api';
 import { getForAddApi } from '@/services/modules/product.api';
 import { uploadNormalApi } from '@/services/modules/upload.api';
 import instance from '@/services/axiosConfig';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -219,32 +220,66 @@ const updateProductApi = async (data) => {
 
 const submitProduct = async () => {
   try {
-    const uploadedImageUrl = await handleImageUpload();
+    // Kiểm tra nếu không có productId hoặc dữ liệu sản phẩm không hợp lệ
+    if (!productId || !product.value.product_name?.trim()) {
+      showNotification("Vui lòng nhập đầy đủ thông tin sản phẩm!", "error");
+      return;
+    }
+
+    // Upload hình ảnh nếu có thay đổi
+    let uploadedImageUrl = product.value.image_url;
+    if (product.value.newImage) {
+      uploadedImageUrl = await handleImageUpload();
+      if (!uploadedImageUrl) {
+        showNotification("Tải ảnh thất bại! Vui lòng thử lại.", "error");
+        return;
+      }
+    }
+
     const updatedProduct = {
       id: productId,
       warehouseId: product.value.warehouse_id,
       supplierId: product.value.supplier_id,
       categoryId: product.value.category_id,
       brandId: product.value.brand_id,
-      productName: product.value.product_name,
-      price: product.value.price,
-      stockQuantity: product.value.stock_quantity,
-      size: product.value.size,
-      color: product.value.color,
-      description: product.value.description,
-      material: product.value.material,
-      discount: product.value.discount,
-      imageUrl: uploadedImageUrl || product.value.image_url,
-      discountType: discountType.value || 'fixed',
+      productName: product.value.product_name?.trim(),
+      price: Number(product.value.price) || 0, // Chuyển đổi sang số, tránh lỗi nhập sai kiểu dữ liệu
+      stockQuantity: Number(product.value.stock_quantity) || 0,
+      size: product.value.size?.trim() || null,
+      color: product.value.color?.trim() || null,
+      description: product.value.description?.trim() || null,
+      material: product.value.material?.trim() || null,
+      discount: Number(product.value.discount) || 0,
+      imageUrl: uploadedImageUrl,
+      discountType: discountType.value || "fixed",
     };
 
-    await updateProductApi(updatedProduct);
-    alert('Cập nhật sản phẩm thành công!');
-    router.push('/product-management');
+    // Gọi API cập nhật sản phẩm
+    const response = await updateProductApi(updatedProduct);
+
+    if (response.data.code === 200) {
+      showNotification("Cập nhật sản phẩm thành công!", "success");
+      router.push("/product-management");
+    } else {
+      showNotification("Cập nhật sản phẩm không thành công!", "error");
+    }
   } catch (error) {
-    console.error('Lỗi khi cập nhật sản phẩm:', error);
-    alert('Có lỗi xảy ra, vui lòng thử lại!');
+    console.error("Lỗi khi cập nhật sản phẩm:", error);
+    const errorMessage = error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại!";
+    showNotification(`Lỗi: ${errorMessage}`, "error");
   }
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 
