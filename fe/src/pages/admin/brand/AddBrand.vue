@@ -47,10 +47,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, createApp } from 'vue';
 import { defineProps, defineEmits } from 'vue';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 import { addBrandApi } from '@/services/modules/brand.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
 const warehouses = ref([]);
@@ -87,24 +88,52 @@ const fetchWarehouse = async () => {
   }
 };
 
-// Xử lý thêm thương hiệu
 const handleAdd = async () => {
   try {
     const brandData = { ...formData.value };
+    
     if (roleUser.code !== 'admin') {
       delete brandData.warehouse_id;
     }
+
     const response = await addBrandApi(brandData);
-    emit('addBrand', response.data);
-    alert('Thêm thương hiệu thành công!');
-    resetForm();
-    close();
+
+    if (response.data.code === 201) {
+      showNotification('Thêm thương hiệu thành công!', 'success');
+      emit('addBrand', response.data);
+      resetForm();
+      close();
+    } else {
+      showNotification('Thêm thương hiệu không thành công!', 'error');
+    }
   } catch (error) {
     console.error('Lỗi khi thêm thương hiệu:', error);
-    alert('Thêm thương hiệu thất bại!');
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || 'Thêm thương hiệu thất bại!';
+      showNotification(`Lỗi: ${errorMessage}`, 'error');
+    } else {
+      showNotification('Lỗi khi thêm thương hiệu!', 'error');
+    }
   }
 };
 
+
+// Hàm gọi Notification.vue
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 // Reset form sau khi submit
 const resetForm = () => {
   formData.value = {

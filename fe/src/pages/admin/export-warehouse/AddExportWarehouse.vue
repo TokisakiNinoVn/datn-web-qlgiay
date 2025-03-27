@@ -170,12 +170,13 @@
   </template>
   
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getListProductApi, getForAddApi } from '@/services/modules/product.api';
 import { createExportWarehouseApi } from '@/services/modules/export-warehouse.api';
 import { useRouter } from 'vue-router';
-  
+import NotificationComponent from '@/components/NotificationComponent.vue';
+
 const router = useRouter();
   // const dataUser = ref(JSON.parse(localStorage.getItem('user')) || { name: '' });
 const dataUser = JSON.parse(localStorage.getItem('user'));
@@ -253,11 +254,13 @@ const updateStockAndPrice = () => {
 
 const addProduct = () => {
   if (!newProduct.value.id) {
-    alert('Vui lòng chọn sản phẩm!');
+    // alert('Vui lòng chọn sản phẩm!');
+    showNotification('Vui lòng chọn sản phẩm!', 'error');
     return;
   }
   if (newProduct.value.quantity <= 0 || newProduct.value.quantity > newProduct.value.stock_quantity) {
-    alert(`Số lượng xuất không hợp lệ! Số lượng phải từ 1 đến ${newProduct.value.stock_quantity}.`);
+    // alert(`Số lượng xuất không hợp lệ! Số lượng phải từ 1 đến ${newProduct.value.stock_quantity}.`);
+    showNotification(`Số lượng xuất không hợp lệ! Số lượng phải từ 1 đến ${newProduct.value.stock_quantity}.`, 'error');
     return;
   }
   detailsExportWarehouse.value.products.push({ ...newProduct.value });
@@ -286,11 +289,13 @@ const formatCurrency = (value) => {
 
 const submitExport = async () => {
   if (!detailsExportWarehouse.value.idWarehouse || !detailsExportWarehouse.value.customer_name || !detailsExportWarehouse.value.customer_phone) {
-    alert('Vui lòng nhập đầy đủ thông tin kho hàng và khách hàng!');
+    // alert('Vui lòng nhập đầy đủ thông tin kho hàng và khách hàng!');
+    showNotification('Vui lòng nhập đầy đủ thông tin kho hàng và khách hàng!', 'error');
     return;
   }
   if (detailsExportWarehouse.value.products.length === 0) {
-    alert('Vui lòng thêm ít nhất một sản phẩm!');
+    showNotification('Vui lòng thêm ít nhất một sản phẩm!', 'error');
+    // alert('Vui lòng thêm ít nhất một sản phẩm!');
     return;
   }
 
@@ -309,12 +314,19 @@ const submitExport = async () => {
       customer_name: detailsExportWarehouse.value.customer_name,
       customer_phone: detailsExportWarehouse.value.customer_phone,
     };
-    await createExportWarehouseApi(payload);
-    alert('Phiếu xuất kho đã được tạo thành công!');
+
+    const response = await createExportWarehouseApi(payload);
+  if (response.data.code !== 201) {
+    showNotification('Tạo phiếu xuất kho không thành công!', 'error');
+  } else {
+    showNotification('Tạo phiếu xuất kho thành công!', 'success');
+  }
+    // alert('Phiếu xuất kho đã được tạo thành công!');
     router.push('/export-management');
   } catch (error) {
     console.error('Lỗi khi tạo phiếu xuất kho:', error);
-    alert('Có lỗi xảy ra, vui lòng thử lại!');
+    // alert('Có lỗi xảy ra, vui lòng thử lại!');
+    showNotification(`Lỗi khi tạo phiếu xuất kho: ${error}`, 'error');
   }
 };
 
@@ -322,229 +334,243 @@ const warehouseName = computed(() => {
   const warehouse = warehouses.value.find(w => w.id === detailsExportWarehouse.value.idWarehouse);
   return warehouse ? warehouse.name : 'Không xác định';
 });
-  </script>
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
+</script>
   
-  <style scoped>
-  .container {
-    min-height: 100vh;
-    background: #f4f6f9;
-    display: flex;
-  }
-  
-  .main-content {
-    margin-left: 280px;
-    width: calc(100% - 280px);
-    padding: 2rem;
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, #dc3545, #c82333);
-    padding: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    margin-bottom: 2rem;
-  }
-  
-  .title {
-    font-size: 1.75rem;
-    color: #fff;
-    font-weight: 700;
-    margin: 0;
-  }
-  
-  .back-btn {
-    padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease;
-  }
-  
-  .back-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-  
-  .form-container {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  }
-  
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-  
-  .form-label {
-    font-size: 1rem;
-    color: #555;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-  
-  .form-input {
-    width: 80%;
-    /* width: auto; */
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.3s ease;
-  }
-  
-  .form-input:focus {
-    border-color: #dc3545;
-    outline: none;
-  }
-  
-  .form-input:disabled {
-    background: #f8f9fa;
-    color: #6c757d;
-  }
-  
-  .filters {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-  
-  .filter-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-width: 200px;
-  }
-  
-  .product-add-section h3,
-  .product-list h3 {
-    font-size: 1.25rem;
-    color: #343a40;
-    font-weight: 600;
-    margin-bottom: 1rem;
-  }
-  
-  .product-inputs {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    align-items: flex-end;
-  }
-  
-  .add-product-btn {
-    padding: 0.75rem 1.5rem;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .add-product-btn:hover {
-    background: #0056b3;
-  }
-  
-  .add-product-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-  }
-  
-  .product-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1.5rem;
-  }
-  
-  .product-table th,
-  .product-table td {
-    padding: 1rem;
-    text-align: center;
-    border-bottom: 1px solid #e9ecef;
-  }
-  
-  .product-table th {
-    background: #f8f9fa;
-    font-weight: 600;
-    color: #343a40;
-    font-size: 0.95rem;
-    text-transform: uppercase;
-  }
-  
-  .product-table td {
-    color: #495057;
-    font-size: 0.9rem;
-  }
-  
-  .product-table tr:hover {
-    background: #f1f3f5;
-  }
-  
-  .stt { width: 5%; }
-  .product-name { width: 35%; text-align: left; }
-  .quantity { width: 15%; }
-  .price { width: 20%; }
-  .total { width: 20%; }
-  .actions { width: 10%; }
-  
-  .delete-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .delete-btn:hover {
-    background: #c82333;
-  }
-  
-  .totals {
-    display: flex;
-    justify-content: space-between;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-  }
-  
-  .totals p {
-    font-size: 1.1rem;
-    color: #343a40;
-  }
-  
-  .totals p strong {
-    font-weight: 600;
-    color: #dc3545;
-  }
-  
-  .submit-btn {
-    padding: 0.75rem 1.5rem;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease;
-  }
-  
-  .submit-btn:hover {
-    background: #c82333;
-  }
-  </style>
+<style scoped>
+.container {
+  min-height: 100vh;
+  background: #f4f6f9;
+  display: flex;
+}
+
+.main-content {
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  padding: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  color: #fff;
+  font-weight: 700;
+  margin: 0;
+}
+
+.back-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.form-container {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  font-size: 1rem;
+  color: #555;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  width: 80%;
+  /* width: auto; */
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  border-color: #dc3545;
+  outline: none;
+}
+
+.form-input:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+.filters {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.product-add-section h3,
+.product-list h3 {
+  font-size: 1.25rem;
+  color: #343a40;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.product-inputs {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.add-product-btn {
+  padding: 0.75rem 1.5rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-product-btn:hover {
+  background: #0056b3;
+}
+
+.add-product-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.product-table th,
+.product-table td {
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.product-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #343a40;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.product-table td {
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.product-table tr:hover {
+  background: #f1f3f5;
+}
+
+.stt { width: 5%; }
+.product-name { width: 35%; text-align: left; }
+.quantity { width: 15%; }
+.price { width: 20%; }
+.total { width: 20%; }
+.actions { width: 10%; }
+
+.delete-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+}
+
+.totals {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.totals p {
+  font-size: 1.1rem;
+  color: #343a40;
+}
+
+.totals p strong {
+  font-weight: 600;
+  color: #dc3545;
+}
+
+.submit-btn {
+  padding: 0.75rem 1.5rem;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: #c82333;
+}
+</style>

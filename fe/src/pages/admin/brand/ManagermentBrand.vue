@@ -36,60 +36,45 @@
 
       <!-- Brand Table -->
       <div class="brand-table-wrapper">
-        <div class="table-grid">
-          <div class="table-header">
-            <div class="table-cell">STT</div>
-            <div class="table-cell">Tên thương hiệu</div>
-            <div class="table-cell">Số lượng sản phẩm</div>
-            <div class="table-cell">Hành động</div>
-          </div>
-          <div
-            v-for="(brand, index) in paginatedBrands"
-            :key="brand.id"
-            class="table-row"
-          >
-            <div class="table-cell">{{ (currentPage - 1) * itemsPerPage + index + 1 }}</div>
-            <div class="table-cell">{{ brand.name }}</div>
-            <div class="table-cell">{{ brand.total_products || 0 }}</div>
-            <div class="table-cell action-cell">
-              <button @click.stop="viewBrand(brand)" class="action-btn view-btn" title="Xem chi tiết">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button @click.stop="showUpdateForm(brand)" class="action-btn edit-btn" title="Chỉnh sửa">
-                <i class="fas fa-pencil-alt"></i>
-              </button>
-              <button @click.stop="removeBrand(brand.id)" class="action-btn delete-btn" title="Xóa">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>
+        <table class="brand-table">
+          <thead>
+            <tr class="table-header">
+              <th class="table-cell">STT</th>
+              <th class="table-cell">Tên thương hiệu</th>
+              <th class="table-cell">Số lượng sản phẩm</th>
+              <th v-if="roleUser.code === 'admin'" class="table-cell">Kho</th>
+              <th class="table-cell">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(brand, index) in filteredBrands"
+              :key="brand.id"
+              class="table-row"
+            >
+              <td class="table-cell">{{ index + 1 }}</td>
+              <td class="table-cell">{{ brand.name }}</td>
+              <td class="table-cell">{{ brand.total_products || 0 }}</td>
+              <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseName(brand.warehouse_id) }}</td>
+              <td class="table-cell action-cell">
+                <button @click.stop="viewBrand(brand)" class="action-btn view-btn" title="Xem chi tiết">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button @click.stop="showUpdateForm(brand)" class="action-btn edit-btn" title="Chỉnh sửa">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button @click.stop="removeBrand(brand.id)" class="action-btn delete-btn" title="Xóa">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
         <div v-if="isMiniLoading" class="loading">
           <i class="fas fa-spinner fa-spin"></i> Đang tải...
         </div>
         <div v-if="!isMiniLoading && filteredBrands.length === 0" class="no-results">
           Không tìm thấy thương hiệu nào.
-        </div>
-
-        <!-- Pagination -->
-        <div class="pagination" v-if="filteredBrands.length > itemsPerPage">
-          <button
-            @click="prevPage"
-            :disabled="currentPage === 1"
-            class="pagination-btn"
-          >
-            <i class="fas fa-chevron-left"></i>
-          </button>
-          <span class="pagination-info">
-            Trang {{ currentPage }} / {{ totalPages }}
-          </span>
-          <button
-            @click="nextPage"
-            :disabled="currentPage === totalPages"
-            class="pagination-btn"
-          >
-            <i class="fas fa-chevron-right"></i>
-          </button>
         </div>
       </div>
 
@@ -107,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import BrandDetail from './DetailBrand.vue';
 import BrandAdd from './AddBrand.vue';
@@ -117,11 +102,11 @@ import {
   deleteBrandApi,
 } from '@/services/modules/brand.api';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const brands = ref([]);
 const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
 const warehouses = ref([]);
-
 const selectedWarehouseId = ref(null);
 const isMiniLoading = ref(false);
 const searchQuery = ref('');
@@ -131,10 +116,6 @@ const showAddModal = ref(false);
 const showUpdateModal = ref(false);
 const selectedBrand = ref(null);
 const idAdminLogin = ref(null);
-
-// Pagination
-const currentPage = ref(1);
-const itemsPerPage = 10;
 
 onBeforeMount(() => {
   fetchBrands();
@@ -195,23 +176,13 @@ const filteredBrands = computed(() => {
   return filtered;
 });
 
-const totalPages = computed(() => Math.ceil(filteredBrands.value.length / itemsPerPage));
-const paginatedBrands = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredBrands.value.slice(start, end);
-});
+const getWarehouseName = (warehouseId) => {
+  const warehouse = warehouses.value.find(w => w.id === warehouseId);
+  return warehouse ? warehouse.name : 'Không xác định';
+};
 
 const applyFilters = () => {
-  currentPage.value = 1; // Reset về trang đầu khi lọc
-};
-
-const prevPage = () => {
-  if (currentPage.value > 1) currentPage.value--;
-};
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) currentPage.value++;
+  fetchBrands();
 };
 
 const showAddForm = () => {
@@ -249,14 +220,30 @@ const updateBrand = (updatedBrand) => {
 const removeBrand = async (id) => {
   if (confirm('Bạn có chắc chắn muốn xóa thương hiệu này?')) {
     try {
-      await deleteBrandApi(id);
+      const response = await deleteBrandApi(id);
       brands.value = brands.value.filter(b => b.id !== id);
-      alert('Xóa thương hiệu thành công!');
+      if (response.data.code !== 200) {
+        showNotification('Xóa thương hiệu không thành công!', 'error');
+      } else {
+        showNotification('Xóa thương hiệu thành công!', 'success');
+      }
     } catch (error) {
       console.error('Error removing brand:', error);
       alert('Có lỗi xảy ra khi xóa thương hiệu.');
     }
   }
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 
 const viewBrand = (brand) => {
@@ -337,7 +324,7 @@ const closeDetail = () => {
 }
 
 .search-input {
-  width: 80%;
+  width: 100%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -401,38 +388,31 @@ const closeDetail = () => {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.table-grid {
-  display: grid;
-  grid-template-columns: 1fr 3fr 2fr 2fr;
-  gap: 1rem;
+.brand-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.table-header {
-  display: contents;
-}
-
-.table-header .table-cell {
+.table-header th {
   font-size: 1rem;
   font-weight: 600;
   color: #343a40;
   padding: 1rem;
   background: #f8f9fa;
-  border-bottom: 2px solid #ddd;
+  border: 1px solid #ddd;
+  text-align: left;
 }
 
-.table-row {
-  display: contents;
-}
-
-.table-row:hover .table-cell {
-  background: #f1f3f5;
-}
-
-.table-cell {
+.table-row td {
   padding: 1rem;
   font-size: 1rem;
   color: #343a40;
-  border-bottom: 1px solid #e9ecef;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.table-row:hover {
+  background: #f1f3f5;
 }
 
 .action-cell {
@@ -488,37 +468,5 @@ const closeDetail = () => {
   padding: 2rem;
   font-size: 1.25rem;
   color: #6c757d;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.pagination-btn {
-  padding: 0.5rem 1rem;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.pagination-btn:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.pagination-info {
-  font-size: 1rem;
-  color: #343a40;
 }
 </style>

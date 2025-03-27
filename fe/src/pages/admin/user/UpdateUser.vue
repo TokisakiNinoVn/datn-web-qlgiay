@@ -146,11 +146,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, createApp } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 import { getUserByIdApi, updateUserApi } from '@/services/modules/user.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -183,6 +184,7 @@ const fetchWarehouse = async () => {
     warehouses.value = response.data.data || [];
   } catch (error) {
     console.error('Error fetching warehouses:', error);
+    showNotification('Lỗi khi tải danh sách kho!', 'error');
     warehouses.value = [];
   }
 };
@@ -203,6 +205,7 @@ const fetchUserData = async () => {
     };
   } catch (error) {
     console.error('Error fetching user data:', error);
+    showNotification('Lỗi khi tải thông tin người dùng!', 'error');
   }
 };
 
@@ -224,8 +227,14 @@ const handleRoleChange = () => {
 const handleUpdate = async () => {
   try {
     const updateData = { ...formData.value, id: userId };
-    await updateUserApi(userId, updateData);
-    alert('Cập nhật thông tin người dùng thành công!');
+    const response = await updateUserApi(userId, updateData);
+    if (response.status !== 200) {
+      // alert('Cập nhật thông tin thất bại!');
+      showNotification('Cập nhật thông tin thất bại!', 'error');
+      return;
+    }
+    showNotification('Cập nhật thông tin người dùng thành công!', 'success');
+    // alert('Cập nhật thông tin người dùng thành công!');
     router.push('/management-user');
   } catch (error) {
     console.error('Error updating user:', error);
@@ -237,6 +246,21 @@ const warehouseName = computed(() => {
   const warehouse = warehouses.value.find(w => w.id === formData.value.warehouse_id);
   return warehouse ? warehouse.name : 'Không xác định';
 });
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>

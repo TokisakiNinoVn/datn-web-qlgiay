@@ -245,7 +245,11 @@ exports.updateUser = async (req, res, next) => {
     //Cập nhật warehouse_user
     const sqlWarehouseUser = `UPDATE warehouse_user SET role_id = ? WHERE user_id = ? AND warehouse_id = ?`;
     await db.pool.execute(sqlWarehouseUser, [roleId, userId, warehouse_id]);
-    res.json({ message: "User updated successfully" });
+    res.json({
+      code: 200,
+      status: "success",
+      message: "User updated successfully"
+    });
   } catch (error) {
     console.error("Update user error:", error);
     res.status(500).json({ error: "Lỗi server, vui lòng thử lại sau" });

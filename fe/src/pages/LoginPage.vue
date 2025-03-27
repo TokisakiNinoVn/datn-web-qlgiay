@@ -78,9 +78,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, createApp } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '@/services/modules/auth.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const phone = ref('');
 const password = ref('');
@@ -111,8 +112,10 @@ const handleLogin = async () => {
     localStorage.setItem('token', response.data.token);
     localStorage.setItem('roles', JSON.stringify(data.role[0]));
     localStorage.setItem('loginTime', new Date().getTime());
-    if (roles === 'staff') router.push('/home-staff');
-    else router.push('/home');
+    showNotification('Đăng nhập thành công', 'success');
+    if (roles === 'staff') {
+      router.push('/home-staff');
+    } else router.push('/home');
 
   } catch (error) {
     console.log(error);
@@ -122,6 +125,20 @@ const handleLogin = async () => {
 
 const togglePassword = () => {
   showPassword.value = !showPassword.value;
+};
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

@@ -46,35 +46,37 @@
           <i class="fas fa-plus mr-2"></i> Thêm nhân viên
         </button>
         <div v-if="roleUser.code === 'admin'" class="filter-item">
-            <label>Kho hàng</label>
-            <select v-model="selectedWarehouseId" @change="applyFiltersAndSearch">
-              <option :value="null">Tất cả</option>
-              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
-            </select>
-          </div>
+          <label>Kho hàng</label>
+          <select v-model="selectedWarehouseId" @change="applyFiltersAndSearch" class="filter-select">
+            <option :value="null">Tất cả</option>
+            <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
+          </select>
+        </div>
       </div>
 
       <!-- Table -->
       <div class="table-wrapper">
         <table v-if="filteredCustomers.length > 0" class="user-table">
           <thead>
-            <tr>
-              <th>STT</th>
-              <th>Họ và tên</th>
-              <th>Chức vụ</th>
-              <th>Điện thoại</th>
-              <th>Địa chỉ</th>
-              <th>Thao tác</th>
+            <tr class="table-header">
+              <th class="table-cell">STT</th>
+              <th class="table-cell">Họ và tên</th>
+              <th class="table-cell">Chức vụ</th>
+              <th class="table-cell">Điện thoại</th>
+              <th class="table-cell">Địa chỉ</th>
+              <th v-if="roleUser.code === 'admin'" class="table-cell">Kho</th>
+              <th class="table-cell">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(user, index) in filteredCustomers" :key="user.id">
-              <td>{{ index + 1 }}</td>
-              <td>{{ user.full_name || 'Chưa có thông tin' }}</td>
-              <td>{{ user.role || 'Chưa có thông tin' }}</td>
-              <td>{{ user.phone || 'Chưa có thông tin' }}</td>
-              <td>{{ user.address || 'Chưa có thông tin' }}</td>
-              <td class="actions">
+            <tr v-for="(user, index) in filteredCustomers" :key="user.id" class="table-row">
+              <td class="table-cell">{{ index + 1 }}</td>
+              <td class="table-cell">{{ user.full_name || 'Chưa có thông tin' }}</td>
+              <td class="table-cell">{{ user.role || 'Chưa có thông tin' }}</td>
+              <td class="table-cell">{{ user.phone || 'Chưa có thông tin' }}</td>
+              <td class="table-cell">{{ user.address || 'Chưa có thông tin' }}</td>
+              <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseNames(user.warehouses) }}</td>
+              <td class="table-cell action-cell">
                 <button 
                   @click="viewCustomer(user)" 
                   class="action-btn view"
@@ -86,9 +88,9 @@
                   class="action-btn edit"
                   title="Cập nhật"
                 >
-                <router-link :to="`/update-user/${user.id}`">
-                  <i class="fas fa-edit"></i>
-                </router-link>
+                  <router-link :to="`/update-user/${user.id}`">
+                    <i class="fas fa-edit"></i>
+                  </router-link>
                 </button>
                 <button 
                   @click="removeCustomer(user.id)" 
@@ -117,19 +119,20 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import CustomerDetail from './DetailUser.vue';
 import CustomerAdd from './AddUser.vue';
 import { getAllUserSimpleApi, addUserApi, removeUserApi, getUserByIdApi } from '@/services/modules/user.api';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
-const roleUser = JSON.parse(localStorage.getItem('roles'))
-const dataUser = JSON.parse(localStorage.getItem('user'))
+const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
+const dataUser = JSON.parse(localStorage.getItem('user')) || { warehouses: [] };
 
 const users = ref([]);
 const originalCustomers = ref([]);
-const warehouse = ref([]);
+const warehouses = ref([]);
 const selectedWarehouseId = ref(null);
 const isMiniLoading = ref(false);
 const searchQuery = ref('');
@@ -146,16 +149,23 @@ onBeforeMount(() => {
 const fetchCustomers = async () => {
   isMiniLoading.value = true;
   try {
-    if ((dataUser.warehouses.length === 0 && roleUser.code === 'admin') || (dataUser.warehouses.length !== 0 && roleUser.code !== 'admin')) {
-      const response = await getAllUserSimpleApi();
-      const data = Array.isArray(response.data) ? response.data : [];
+    const response = await getAllUserSimpleApi();
+    const data = Array.isArray(response.data) ? response.data : [];
+    if (roleUser.code === 'admin') {
       users.value = data;
       originalCustomers.value = [...data];
+    } else if (dataUser.warehouses.length > 0) {
+      users.value = data.filter(user => 
+        user.warehouses.some(w => dataUser.warehouses.includes(w))
+      );
+      originalCustomers.value = [...users.value];
     } else {
       users.value = [];
+      originalCustomers.value = [];
     }
   } catch (error) {
     console.error('Error fetching users:', error);
+    showNotification(`Có lỗi xảy ra khi lấy danh sách người dùng: ${error}`, 'error');
     users.value = [];
     originalCustomers.value = [];
   } finally {
@@ -166,17 +176,20 @@ const fetchCustomers = async () => {
 const fetchWarehouse = async () => {
   try {
     const response = await getListSimpleWarehouseApi();
-    warehouse.value = response.data.data || [];
+    warehouses.value = Array.isArray(response.data.data) ? response.data.data : [];
+    console.log('Warehouses:', warehouses.value);
   } catch (error) {
     console.error('Error fetching warehouse:', error);
-    warehouse.value = [];
+    showNotification(`Có lỗi xảy ra khi lấy danh sách kho hàng: ${error}`, 'error');
+    warehouses.value = [];
   }
 };
 
 const resetFilters = () => {
   searchQuery.value = '';
   selectedRole.value = null;
-  users.value = [...originalCustomers.value];
+  selectedWarehouseId.value = null;
+  applyFiltersAndSearch();
 };
 
 const filterByRole = (roleCode) => {
@@ -187,28 +200,45 @@ const filterByRole = (roleCode) => {
 const applyFiltersAndSearch = () => {
   let filtered = [...originalCustomers.value];
 
+  // Lọc theo vai trò
   if (selectedRole.value) {
     filtered = filtered.filter(user => user.role_code === selectedRole.value);
   }
 
+  // Lọc theo kho (chỉ áp dụng cho admin)
+  if (roleUser.code === 'admin' && selectedWarehouseId.value) {
+    filtered = filtered.filter(user => 
+      user.warehouses && user.warehouses.includes(selectedWarehouseId.value)
+    );
+  }
+
+  // Lọc theo từ khóa tìm kiếm
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(user => (
       user.full_name?.toLowerCase().includes(query) ||
       user.address?.toLowerCase().includes(query) ||
       user.phone?.toLowerCase().includes(query)
-    )
-    );
+    ));
   }
 
   users.value = filtered;
-  if (!filtered.length && searchQuery.value) {
-    alert('Không tìm thấy người dùng nào.');
+  if (!filtered.length && (searchQuery.value || selectedRole.value || selectedWarehouseId.value)) {
+    showNotification('Không tìm thấy người dùng nào.', 'error');
   }
 };
 
 const searchCustomer = () => {
   applyFiltersAndSearch();
+};
+
+const getWarehouseNames = (warehouseIds) => {
+  if (!warehouseIds || warehouseIds.length === 0) return 'Không xác định';
+  const names = warehouseIds.map(id => {
+    const warehouse = warehouses.value.find(w => w.id === id);
+    return warehouse ? warehouse.name : 'Không xác định';
+  });
+  return names.join(', ');
 };
 
 const removeCustomer = async (id) => {
@@ -217,10 +247,10 @@ const removeCustomer = async (id) => {
       await removeUserApi(id);
       users.value = users.value.filter(c => c.id !== id);
       originalCustomers.value = originalCustomers.value.filter(c => c.id !== id);
-      alert('Xóa người dùng thành công!');
+      showNotification('Xóa người dùng thành công!', 'success');
     } catch (error) {
       console.error('Error removing user:', error);
-      alert('Có lỗi xảy ra khi xóa người dùng.');
+      showNotification('Có lỗi xảy ra khi xóa người dùng.', 'error');
     }
   }
 };
@@ -232,7 +262,7 @@ const viewCustomer = async (user) => {
     showDetail.value = true;
   } catch (error) {
     console.error('Error fetching user details:', error);
-    alert('Có lỗi xảy ra khi xem chi tiết.');
+    showNotification(`Có lỗi xảy ra khi xem chi tiết: ${error}`, 'error');
   }
 };
 
@@ -242,15 +272,19 @@ const closeDetail = () => {
 };
 
 const addCustomer = async (customerData) => {
-  const response = await addUserApi(customerData);
-  if (response.data.code === 400) {
-    alert(`Thêm người dùng không thành công!: ${response.data.message}`);
-    console.log('response:', response.data.message);
-    return;
+  try {
+    const response = await addUserApi(customerData);
+    if (response.data.code === 400) {
+      showNotification(`Thêm người dùng không thành công!: ${response.data.message}`, 'error');
+      return;
+    }
+    showNotification('Thêm người dùng thành công!', 'success');
+    fetchCustomers();
+    closeAddModal();
+  } catch (error) {
+    console.error('Error adding user:', error);
+    showNotification(`Có lỗi xảy ra khi thêm người dùng: ${error}`, 'error');
   }
-  alert('Thêm người dùng thành công!');
-  fetchCustomers();
-  closeAddModal();
 };
 
 const showAddForm = () => {
@@ -262,149 +296,182 @@ const closeAddModal = () => {
 };
 
 const filteredCustomers = computed(() => users.value.map((user, index) => ({ ...user, index })));
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>
-.toolbar i {
-  margin-right: 0.5rem;
-}
-/* General Styles */
 .container {
-  display: flex;
   min-height: 100vh;
-  background: #f0f2f5;
+  background: #f4f6f9;
+  display: flex;
 }
 
 .main-content {
-  flex: 1;
-  margin-left: 260px;
+  margin-left: 280px;
+  width: calc(100% - 280px);
   padding: 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e8ecef;
 }
 
 .title {
   font-size: 2rem;
-  color: #2c3e50;
+  color: #fff;
   font-weight: 700;
+  margin: 0;
 }
 
 .search-bar {
   display: flex;
   gap: 1rem;
-  max-width: 500px;
 }
 
 .search-wrapper {
   position: relative;
   flex: 1;
+  max-width: 400px;
 }
 
 .search-icon {
   position: absolute;
-  left: 1rem;
   top: 50%;
+  left: 10px;
   transform: translateY(-50%);
-  color: #95a5a6;
+  color: #6c757d;
 }
 
 .search-input {
   width: 80%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid #dfe6e9;
+  border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
-  transition: border-color 0.3s;
+  transition: border-color 0.3s ease;
 }
 
 .search-input:focus {
-  border-color: #3498db;
+  border-color: #007bff;
   outline: none;
-  box-shadow: 0 0 5px rgba(52, 152, 219, 0.2);
 }
 
 .search-btn {
   padding: 0.75rem 1.5rem;
-  background: #3498db;
+  background: #007bff;
   color: white;
   border: none;
   border-radius: 8px;
-  transition: background 0.3s;
+  cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.search-btn:hover:not(:disabled) {
-  background: #2980b9;
+.search-btn:hover {
+  background: #0056b3;
 }
 
 .search-btn:disabled {
-  background: #95a5a6;
+  background: #6c757d;
   cursor: not-allowed;
 }
 
-/* Toolbar */
 .toolbar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
   flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: center;
 }
 
-.reset-btn, .add-btn, .filter-btn {
+.reset-btn, .filter-btn, .add-btn {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
-  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  transition: background 0.3s;
-  font-weight: 500;
+  gap: 0.5rem;
+  transition: background 0.3s ease;
 }
 
 .reset-btn {
-  background: #95a5a6;
+  background: #6c757d;
+  color: white;
 }
 
 .reset-btn:hover {
-  background: #7f8c8d;
+  background: #5a6268;
 }
 
 .filter-btn {
-  background: #34495e;
+  background: #e9ecef;
+  color: #343a40;
 }
 
-.filter-btn:hover {
-  background: #2c3e50;
-}
-
-.filter-btn.active {
-  background: #e67e22;
+.filter-btn:hover, .filter-btn.active {
+  background: #007bff;
+  color: white;
 }
 
 .add-btn {
-  background: #2ecc71;
+  background: #28a745;
+  color: white;
 }
 
 .add-btn:hover {
-  background: #27ae60;
+  background: #218838;
 }
 
-/* Table */
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-item label {
+  font-size: 1rem;
+  color: #343a40;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.filter-select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
 .table-wrapper {
-  background: white;
+  background: #fff;
+  padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  overflow-x: auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .user-table {
@@ -412,85 +479,73 @@ const filteredCustomers = computed(() => users.value.map((user, index) => ({ ...
   border-collapse: collapse;
 }
 
-.user-table th, .user-table td {
-  padding: 1rem;
-  text-align: center;
-}
-
-.user-table th {
-  background: #f8f9fa;
-  color: #2c3e50;
+.table-header th {
+  font-size: 1rem;
   font-weight: 600;
-  font-size: 15px;
-  border-bottom: 2px solid #e8ecef;
-}
-
-.user-table td {
-  color: #636e72;
-  font-size: 14px;
-  border-bottom: 1px solid #e8ecef;
-}
-
-.user-table tr:hover {
+  color: #343a40;
+  padding: 1rem;
   background: #f8f9fa;
+  border: 1px solid #ddd;
+  text-align: left;
 }
 
-.actions {
+.table-row td {
+  padding: 1rem;
+  font-size: 1rem;
+  color: #343a40;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.table-row:hover {
+  background: #f1f3f5;
+}
+
+.action-cell {
   display: flex;
+  gap: 0.5rem;
   justify-content: center;
-  gap: 0.75rem;
 }
 
 .action-btn {
   padding: 0.5rem;
   border: none;
-  border-radius: 50%;
-  background: transparent;
-  transition: all 0.3s;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.action-btn i {
-  font-size: 1.1rem;
+.view {
+  background: #17a2b8;
+  color: white;
 }
 
-.edit { color: #f1c40f; }
-.edit:hover { background: #f1c40f; color: white; }
+.view:hover {
+  background: #138496;
+}
 
-.view { color: #3498db; }
-.view:hover { background: #3498db; color: white; }
+.edit {
+  background: #ffc107;
+  color: #343a40;
+}
 
-.delete { color: #e74c3c; }
-.delete:hover { background: #e74c3c; color: white; }
+.edit:hover {
+  background: #e0a800;
+}
 
-/* Loading and No Data */
-.loading {
+.delete {
+  background: #dc3545;
+  color: white;
+}
+
+.delete:hover {
+  background: #c82333;
+}
+
+.loading, .no-data {
   text-align: center;
   padding: 2rem;
-  color: #7f8c8d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.no-data {
-  text-align: center;
-  padding: 2rem;
-  color: #7f8c8d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-/* Modal Overlay */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  font-size: 1.25rem;
+  color: #6c757d;
 }
 </style>

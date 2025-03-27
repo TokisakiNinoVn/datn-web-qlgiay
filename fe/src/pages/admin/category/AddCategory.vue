@@ -48,11 +48,11 @@
 </template>
 
 <script setup>
-// import { ref, onMounted } from 'vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, createApp } from 'vue';
 import { defineProps, defineEmits } from 'vue';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
 import { addCategoryApi } from '@/services/modules/category.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles')) || { code: '' };
 const warehouses = ref([]);
@@ -75,6 +75,7 @@ const fetchWarehouse = async () => {
     }
   } catch (error) {
     console.error('Lỗi khi lấy danh sách kho:', error);
+    showNotification(`Lỗi khi lấy danh sách kho: ${error}`, 'error');
     warehouses.value = [];
   }
 };
@@ -89,12 +90,28 @@ const formData = ref({
 
 // Xử lý submit
 const handleAdd = async () => {
-  const categoryData = { ...formData.value };
-  const response = await addCategoryApi(categoryData);
-  emit('addCategory', response.data);
-  alert('Thêm danh mục thành công!');
-  resetForm();
-  close();
+  try {
+    const categoryData = { ...formData.value };
+    const response = await addCategoryApi(categoryData);
+
+    if (response.data.code === 201) {
+      showNotification('Thêm danh mục thành công!', 'success');
+      emit('addCategory', response.data);
+      resetForm();
+      close();
+    } else {
+      showNotification('Thêm danh mục không thành công!', 'error');
+    }
+  } catch (error) {
+    console.error('Lỗi khi thêm danh mục:', error);
+
+    if (error.response && error.response.status === 400) {
+      const errorMessage = error.response.data?.message || 'Thêm danh mục thất bại!';
+      showNotification(`Lỗi: ${errorMessage}`, 'error');
+    } else {
+      showNotification('Thêm danh mục thất bại!', 'error');
+    }
+  }
 };
 
 // Reset form sau khi submit
@@ -112,9 +129,24 @@ const close = () => {
 
 onMounted(() => {
   if (roleUser.code === 'admin') {
-      fetchWarehouse();
-    }
+    fetchWarehouse();
+  }
 });
+// Hàm gọi Notification.vue
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>

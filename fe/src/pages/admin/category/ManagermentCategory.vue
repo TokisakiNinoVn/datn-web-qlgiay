@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import CategoryDetail from './DetailCategory.vue';
 import CategoryAdd from './AddCategory.vue';
@@ -103,6 +103,7 @@ import {
   deleteCategoryApi
 } from '@/services/modules/category.api';
 import { getListSimpleWarehouseApi } from '@/services/modules/warehouse.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const categories = ref([]);
 const warehouses = ref([]);
@@ -206,24 +207,27 @@ const updateCategory = async (updatedCategory) => {
   try {
     updatedCategory.idAdmin = idAdminLogin.value;
     await updateCategoryApi(updatedCategory);
-    alert('Cập nhật danh mục thành công!');
     fetchCategories();
     closeUpdateModal();
   } catch (error) {
     console.error('Error updating category:', error);
-    alert('Có lỗi xảy ra khi cập nhật danh mục.');
+    showNotification(`Có lỗi xảy ra khi cập nhật danh mục.`, 'error');
   }
 };
 
 const removeCategory = async (id) => {
   if (confirm('Bạn có chắc chắn muốn xóa danh mục này?')) {
     try {
-      await deleteCategoryApi(id);
+      const response = await deleteCategoryApi(id);
       categories.value = categories.value.filter(c => c.id !== id);
-      alert('Xóa danh mục thành công!');
+      if (response.data.code !== 200) {
+        showNotification(`Xóa danh mục không thành công: ${response.data.message}`, 'error');
+      } else {
+        showNotification('Xóa danh mục thành công!', 'success');
+      }
     } catch (error) {
       console.error('Error removing category:', error);
-      alert('Có lỗi xảy ra khi xóa danh mục.');
+      showNotification(`Có lỗi xảy ra khi xóa danh mục.`, 'error');
     }
   }
 };
@@ -236,6 +240,18 @@ const viewCategory = (category) => {
 const closeDetail = () => {
   showDetail.value = false;
   categoryDetail.value = null;
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const app = createApp(NotificationComponent, { message, type });
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 
@@ -306,7 +322,7 @@ const closeDetail = () => {
 }
 
 .search-input {
-  width: 100%;
+  width: 80%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -375,33 +391,26 @@ const closeDetail = () => {
   border-collapse: collapse;
 }
 
-.table-header {
-  background: #f8f9fa;
-}
-
 .table-header th {
   font-size: 1rem;
   font-weight: 600;
   color: #343a40;
   padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
   text-align: left;
-  border-bottom: 2px solid #ddd;
+}
+
+.table-row td {
+  padding: 1rem;
+  font-size: 1rem;
+  color: #343a40;
+  border: 1px solid #ddd;
+  vertical-align: middle;
 }
 
 .table-row:hover {
   background: #f1f3f5;
-}
-
-.table-cell {
-  padding: 1rem;
-  font-size: 1rem;
-  color: #343a40;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: middle;
-}
-
-.table-cell.action-cell {
-  text-align: center;
 }
 
 .action-cell {

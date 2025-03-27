@@ -47,7 +47,11 @@ exports.create = async (req, res, next) => {
             throw new Error('Transaction not found');
         }
 
-        res.status(201).json({ message: 'Warehouse entry created successfully' });
+        res.status(201).json({
+            code: 201,
+            status: 'success',
+            message: 'Warehouse entry created successfully'
+        });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -164,7 +168,11 @@ exports.delete = async (req, res, next) => {
         // Xóa phiếu nhập kho
         await db.pool.execute('DELETE FROM stock_transactions WHERE id = ?', [id]);
 
-        res.status(200).json({ message: 'Warehouse entry deleted successfully' });
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            message: 'Warehouse entry deleted successfully'
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
         console.log(error);

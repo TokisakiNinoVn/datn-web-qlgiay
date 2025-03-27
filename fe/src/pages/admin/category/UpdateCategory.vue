@@ -37,8 +37,9 @@
 </template>
 
 <script setup>
-import { ref, watch, defineProps, defineEmits } from 'vue';
+import { ref, watch, defineProps, defineEmits, createApp } from 'vue';
 import { updateCategoryApi } from '@/services/modules/category.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const isSubmitting = ref(false);
 
@@ -89,21 +90,45 @@ const handleUpdate = async () => {
       id: formData.value.id,
       name: formData.value.name,
     };
-    await updateCategoryApi(updatedData);
+    // eslint-disable-next-line no-unused-vars
+    const response = await updateCategoryApi(updatedData);
     emit('updateCategory', updatedData);
-    alert('Cập nhật danh mục thành công!');
+    showNotification('Cập nhật danh mục thành công!', 'success');
     close();
   } catch (error) {
     console.error('Lỗi khi cập nhật danh mục:', error);
-    alert('Cập nhật danh mục thất bại!');
+    
+    if (error.response && error.response.status === 400) {
+      // Kiểm tra nếu lỗi trùng tên danh mục
+      const errorMessage = error.response.data?.message || 'Cập nhật danh mục thất bại!';
+      showNotification(`Cập nhật không thành công: ${errorMessage}`, 'error');
+    } else {
+      showNotification('Cập nhật danh mục thất bại!', 'error');
+    }
   } finally {
     isSubmitting.value = false;
   }
 };
 
+
 // Đóng modal
 const close = () => {
   emit('close');
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 
@@ -190,7 +215,7 @@ const close = () => {
 }
 
 .form-input {
-  width: 100%;
+  width: 90%;
   padding: 12px;
   border: 1px solid #dfe6e9;
   border-radius: 8px;

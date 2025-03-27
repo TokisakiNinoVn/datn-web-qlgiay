@@ -36,36 +36,42 @@
 
       <!-- Supplier Table -->
       <div class="supplier-table-wrapper">
-        <div class="table-grid">
-          <div class="table-header">
-            <div class="table-cell">STT</div>
-            <div class="table-cell">Tên nhà cung cấp</div>
-            <div class="table-cell">Địa chỉ</div>
-            <div class="table-cell">Số điện thoại</div>
-            <div class="table-cell">Hành động</div>
-          </div>
-          <div
-            v-for="(supplier, index) in filteredSuppliers"
-            :key="supplier.id"
-            class="table-row"
-          >
-            <div class="table-cell">{{ index + 1 }}</div>
-            <div class="table-cell">{{ supplier.name }}</div>
-            <div class="table-cell">{{ supplier.address }}</div>
-            <div class="table-cell">{{ supplier.phone }}</div>
-            <div class="table-cell action-cell">
-              <button @click.stop="viewSupplier(supplier)" class="action-btn view-btn" title="Xem chi tiết">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button @click.stop="showUpdateForm(supplier)" class="action-btn edit-btn" title="Chỉnh sửa">
-                <i class="fas fa-pencil-alt"></i>
-              </button>
-              <button @click.stop="removeSupplier(supplier.id)" class="action-btn delete-btn" title="Xóa">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>
+        <table class="supplier-table">
+          <thead>
+            <tr class="table-header">
+              <th class="table-cell">STT</th>
+              <th class="table-cell">Tên nhà cung cấp</th>
+              <th class="table-cell">Địa chỉ</th>
+              <th class="table-cell">Số điện thoại</th>
+              <th v-if="roleUser.code === 'admin'" class="table-cell">Thuộc kho</th>
+              <th class="table-cell">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(supplier, index) in filteredSuppliers"
+              :key="supplier.id"
+              class="table-row"
+            >
+              <td class="table-cell">{{ index + 1 }}</td>
+              <td class="table-cell">{{ supplier.name }}</td>
+              <td class="table-cell">{{ supplier.address }}</td>
+              <td class="table-cell">{{ supplier.phone }}</td>
+              <td v-if="roleUser.code === 'admin'" class="table-cell">{{ getWarehouseName(supplier.warehouse_id) }}</td>
+              <td class="table-cell action-cell">
+                <button @click.stop="viewSupplier(supplier)" class="action-btn view-btn" title="Xem chi tiết">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button @click.stop="showUpdateForm(supplier)" class="action-btn edit-btn" title="Chỉnh sửa">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button @click.stop="removeSupplier(supplier.id)" class="action-btn delete-btn" title="Xóa">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
         <div v-if="isMiniLoading" class="loading">
           <i class="fas fa-spinner fa-spin"></i> Đang tải...
         </div>
@@ -95,7 +101,6 @@ import SupplierAdd from './AddSupplier.vue';
 import SupplierUpdate from './UpdateSupplier.vue';
 import {
   getAllSupplierApi,
-  // addSupplierApi,
   updateSupplierApi,
   deleteSupplierApi
 } from '@/services/modules/supplier.api';
@@ -143,6 +148,11 @@ const fetchSuppliers = async () => {
   }
 };
 
+const getWarehouseName = (warehouseId) => {
+  const warehouse = warehouses.value.find(w => w.id === warehouseId);
+  return warehouse ? warehouse.name : 'Không xác định';
+};
+
 const fetchWarehouse = async () => {
   try {
     const response = await getListSimpleWarehouseApi();
@@ -174,7 +184,7 @@ const filteredSuppliers = computed(() => {
 });
 
 const applyFilters = () => {
-  fetchSuppliers(); // Tải lại dữ liệu khi thay đổi bộ lọc
+  fetchSuppliers();
 };
 
 const showAddForm = () => {
@@ -368,38 +378,31 @@ const closeDetail = () => {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.table-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr 3fr 2fr 2fr;
-  gap: 1rem;
+.supplier-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.table-header {
-  display: contents;
-}
-
-.table-header .table-cell {
+.table-header th {
   font-size: 1rem;
   font-weight: 600;
   color: #343a40;
   padding: 1rem;
   background: #f8f9fa;
-  border-bottom: 2px solid #ddd;
+  border: 1px solid #ddd;
+  text-align: left;
 }
 
-.table-row {
-  display: contents;
-}
-
-.table-row:hover .table-cell {
-  background: #f1f3f5;
-}
-
-.table-cell {
+.table-row td {
   padding: 1rem;
   font-size: 1rem;
   color: #343a40;
-  border-bottom: 1px solid #e9ecef;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.table-row:hover {
+  background: #f1f3f5;
 }
 
 .action-cell {

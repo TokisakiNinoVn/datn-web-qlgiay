@@ -1,18 +1,25 @@
 const db = require('../config/db.config');
-
+const { HTTP_STATUS } = require('../constants/status-code.js');
+const AppError = require('../utils/app-error.js');
 //Thêm danh mục
 exports.addCategory = async (req, res, next) => { 
     const warehouseId = req.user.warehouses[0];
     const { name, warehouse_id } = req.body;
     const role = req.user.role;
-    console.log('req.user:', req.user);
-    console.log('warehouseId:', warehouseId);
+    // console.log('req.user:', req.user);
+    // console.log('warehouseId:', warehouseId);
 
     try {
         if (role === 'admin') { 
             const [nameCheck] = await db.pool.execute('SELECT * FROM categories WHERE name = ? AND warehouse_id = ?', [name, warehouse_id]);
             if (nameCheck.length > 0) {
-                return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên danh mục đã tồn tại', []), req, res, next);
+                // return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên danh mục đã tồn tại', []), req, res, next);
+                res.status(400).json({
+                    code: 400,
+                    status: 'failed',
+                    message: 'Tên danh mục đã tồn tại',
+                });
+                return;
             }
 
             const createdAt = new Date();
@@ -62,7 +69,13 @@ exports.updateCategory = async (req, res, next) => {
         // Kiểm tra trùng lặp tên danh mục
         const [nameCheck] = await db.pool.execute('SELECT * FROM categories WHERE name = ? AND id != ?', [name, id]);
         if (nameCheck.length > 0) {
-            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên danh mục đã tồn tại', []), req, res, next);
+            // return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Tên danh mục đã tồn tại', []), req, res, next);
+            res.status(400).json({
+                code: 400,
+                status: 'failed',
+                message: 'Tên danh mục đã tồn tại',
+            });
+            return;
         }
 
         const updatedAt = new Date();
@@ -84,16 +97,19 @@ exports.updateCategory = async (req, res, next) => {
 //Xóa danh mục
 exports.deleteCategory = async (req, res, next) => { 
     const warehouseId = req.user.warehouses[0];
+    console.log('warehouseId:', warehouseId);
     const { id } = req.params;
     try {
         const [supplierCheck] = await db.pool.execute('SELECT * FROM categories WHERE id = ?', [id]);
         if (supplierCheck.length === 0) {
             return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Danh mục không tồn tại', []), req, res, next);
         }
-
+        
+        if (warehouseId !== undefined) {
+            //Câp nhật lại danh mục cho sản phẩm
+            await db.pool.execute('UPDATE products SET category_id = NULL WHERE category_id = ? AND warehouse_id = ?', [id, warehouseId]);
+        }
         await db.pool.execute('DELETE FROM categories WHERE id = ?', [id]);
-        //Câp nhật lại danh mục cho sản phẩm
-        await db.pool.execute('UPDATE products SET category_id = NULL WHERE category_id = ? AND warehouse_id = ?', [id, warehouseId]);
 
         res.status(200).json({
             code: 200,

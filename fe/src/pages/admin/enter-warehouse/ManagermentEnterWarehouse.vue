@@ -138,11 +138,12 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getAllEnterWarehouseApi, deleteEnterWarehouseApi } from '@/services/modules/enter-warehouse.api';
 import { getForAddApi } from '@/services/modules/product.api';
 import * as XLSX from "xlsx";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles'));
 
@@ -206,12 +207,18 @@ const removeEnterWarehouse = async (id) => {
   const confirmDelete = confirm('Bạn có chắc chắn muốn xóa đơn nhập kho này?');
   if (confirmDelete) {
     try {
-      await deleteEnterWarehouseApi(id);
+      const response = await deleteEnterWarehouseApi(id);
       enterWarehouses.value = enterWarehouses.value.filter(ew => ew.id !== id);
-      alert('Đơn nhập kho đã được xóa!');
+      if (response.data.code !== 200) {
+        showNotification('Xóa hóa đơn nhập kho không thành công!', 'error');
+      } else {
+        showNotification('Xóa hóa đơn nhập kho thành công!', 'success');
+      }
+      // alert('Đơn nhập kho đã được xóa!');
     } catch (error) {
       console.error('Error removing enter warehouse:', error);
-      alert('Có lỗi xảy ra khi xóa đơn nhập kho.');
+      showNotification(`Có lỗi xảy ra khi xóa đơn nhập kho: ${error}`, 'error');
+      // alert('Có lỗi xảy ra khi xóa đơn nhập kho.');
     }
   }
 };
@@ -228,10 +235,6 @@ const limitInput = () => {
 
 const filteredEnterWarehouses = computed(() => {
   let filtered = [...enterWarehouses.value];
-
-  // console.log('Trước khi lọc:', filtered.length);
-
-  // Lọc theo mã hóa đơn
   const query = searchInvoiceCode.value.toString();
   if (/^\d{6}$/.test(query)) {
     filtered = filtered.filter(ew => {
@@ -239,7 +242,6 @@ const filteredEnterWarehouses = computed(() => {
       return invoiceCode.includes(query);
     });
   } 
-  // console.log('Sau khi lọc theo mã hóa đơn:', filtered.length);
 
   // Lọc theo người tạo
   if (searchCreatedBy.value) {
@@ -298,6 +300,21 @@ const exportToExcel = () => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Enter Warehouses');
   XLSX.writeFile(wb, 'enter-warehouses.xlsx');
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

@@ -104,9 +104,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, createApp } from 'vue';
 import { useRouter } from 'vue-router';
 import { logout } from '@/services/modules/auth.api';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const router = useRouter();
 const parsedRole = JSON.parse(localStorage.getItem('roles'));
@@ -122,7 +123,8 @@ const handleLogout = async () => {
     const id = userInfor.id;
     const response = await logout(id);
     if (response.status === 200) {
-      alert('Đăng xuất thành công');
+      // alert('Đăng xuất thành công');
+      showNotification('Đăng xuất thành công', 'success');
       router.push('/login');
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('user');
@@ -131,6 +133,21 @@ const handleLogout = async () => {
       localStorage.setItem('isLoggedIn', 'false');
     }
   }
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 
 onMounted(() => {

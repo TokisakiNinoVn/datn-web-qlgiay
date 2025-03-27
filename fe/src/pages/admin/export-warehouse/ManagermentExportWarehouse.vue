@@ -137,11 +137,12 @@
 </template>
 
 <script setup>
-import { ref, onBeforeMount, computed } from 'vue';
+import { ref, onBeforeMount, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getAllExportWarehouseApi, deleteExportWarehouseApi } from '@/services/modules/export-warehouse.api';
 import { getForAddApi } from '@/services/modules/product.api';
 import * as XLSX from "xlsx";
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const roleUser = JSON.parse(localStorage.getItem('roles'));
 
@@ -179,7 +180,8 @@ const fetchAllEnterWarehouse = async () => {
     enterWarehouses.value = response.data.data;
     // console.log('enterWarehouses', enterWarehouses.value.length); // Kiểu tra thấy 6 đơn nhập kho
   } catch (error) {
-    console.error('Error fetching enter warehouses:', error);
+    // console.error('Error fetching enter warehouses:', error);
+    showNotification(`Có lỗi xảy ra khi lấy dữ liệu đơn nhập kho:${error}`, 'error');
     enterWarehouses.value = [];
   } finally {
     isMiniLoading.value = false;
@@ -207,10 +209,12 @@ const removeEnterWarehouse = async (id) => {
     try {
       await deleteExportWarehouseApi(id);
       enterWarehouses.value = enterWarehouses.value.filter(ew => ew.id !== id);
-      alert('Đơn nhập kho đã được xóa!');
+      showNotification('Đơn xuất kho đã được xóa!', 'success');
+      // alert('Đơn nhập kho đã được xóa!');
     } catch (error) {
       console.error('Error removing enter warehouse:', error);
-      alert('Có lỗi xảy ra khi xóa đơn nhập kho.');
+      // alert('Có lỗi xảy ra khi xóa đơn nhập kho.');
+      showNotification(`Có lỗi xảy ra khi xóa đơn nhập kho: ${error}`, 'error');
     }
   }
 };
@@ -227,10 +231,6 @@ const limitInput = () => {
 
 const filteredEnterWarehouses = computed(() => {
   let filtered = [...enterWarehouses.value];
-
-  // console.log('Trước khi lọc:', filtered.length);
-
-  // Lọc theo mã hóa đơn
   const query = searchInvoiceCode.value.toString();
   if (/^\d{6}$/.test(query)) {
     filtered = filtered.filter(ew => {
@@ -238,7 +238,6 @@ const filteredEnterWarehouses = computed(() => {
       return invoiceCode.includes(query);
     });
   } 
-  // console.log('Sau khi lọc theo mã hóa đơn:', filtered.length);
 
   // Lọc theo người tạo
   if (searchCreatedBy.value) {
@@ -297,6 +296,21 @@ const exportToExcel = () => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   XLSX.writeFile(wb, "export-warehouse.xlsx");
+};
+
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
 };
 </script>
 

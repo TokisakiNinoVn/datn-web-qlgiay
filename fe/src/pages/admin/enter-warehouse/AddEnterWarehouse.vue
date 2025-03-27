@@ -6,7 +6,7 @@
         <div class="header">
         <h2 class="title">Tạo phiếu nhập kho</h2>
         <router-link to="/enter-management" class="back-btn">
-            <i class="fas fa-arrow-left mr-2"></i> Quay lại
+            <i class="fas fa-arrow-left mr-2" style="margin-right: 0.5rem;"></i> Quay lại
         </router-link>
         </div>
 
@@ -152,11 +152,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, createApp } from 'vue';
 import Navbar from '@/components/NavbarComponent.vue';
 import { getListProductApi, getForAddApi } from '@/services/modules/product.api';
 import { createEnterWarehouseApi } from '@/services/modules/enter-warehouse.api';
 import { useRouter } from 'vue-router';
+import NotificationComponent from '@/components/NotificationComponent.vue';
 
 const router = useRouter();
 const dataUser = JSON.parse(localStorage.getItem('user'));
@@ -213,8 +214,9 @@ const fetchListBasicProduct = async () => {
 
 const addProduct = () => {
     if (!newProduct.value.id || newProduct.value.quantity <= 0 || newProduct.value.price_per_unit < 0) {
-    alert('Vui lòng nhập đầy đủ thông tin sản phẩm!');
-    return;
+        // alert('Vui lòng nhập đầy đủ thông tin sản phẩm!');
+        showNotification('Vui lòng nhập đầy đủ thông tin sản phẩm!', 'error');
+        return;
     }
     detailsEnterWarehouse.value.products.push({ ...newProduct.value });
     resetNewProduct();
@@ -244,18 +246,21 @@ const submitRoom = async () => {
     if (detailsEnterWarehouse.value.isReturn) {
         // if (!confirm('Bạn có chắc chắn muốn hoàn hàng?')) {
             if (!detailsEnterWarehouse.value.idWarehouse) {
-                alert('Vui lòng chọn kho hàng và nhà cung cấp!');
+                // alert('Vui lòng chọn kho hàng và nhà cung cấp!');
+                showNotification('Vui lòng chọn kho hàng và nhà cung cấp!', 'error');
                 return;
             }
         // }
     } else {
         if (!detailsEnterWarehouse.value.idWarehouse || !detailsEnterWarehouse.value.idSupplier) {
-            alert('Vui lòng chọn kho hàng và nhà cung cấp!');
+            // alert('Vui lòng chọn kho hàng và nhà cung cấp!');
+            showNotification('Vui lòng chọn kho hàng và nhà cung cấp!', 'error');
             return;
         }
     }
     if (detailsEnterWarehouse.value.products.length === 0) {
-        alert('Vui lòng thêm ít nhất một sản phẩm!');
+        // alert('Vui lòng thêm ít nhất một sản phẩm!');
+        showNotification('Vui lòng thêm ít nhất một sản phẩm!', 'error');
         return;
     }
 
@@ -270,18 +275,33 @@ const submitRoom = async () => {
             isReturn: detailsEnterWarehouse.value.isReturn,
         };
         await createEnterWarehouseApi(payload);
-        alert('Phiếu nhập kho đã được tạo thành công!');
+        // alert('Phiếu nhập kho đã được tạo thành công!');
+        showNotification('Phiếu nhập kho đã được tạo thành công!', 'success');
         router.push('/enter-management');
     } catch (error) {
         console.error('Lỗi khi tạo phiếu nhập kho:', error);
-        alert('Có lỗi xảy ra, vui lòng thử lại!');
+        // alert('Có lỗi xảy ra, vui lòng thử lại!');
+        showNotification(`Có lỗi xảy ra, vui lòng thử lại: ${error}`, 'error');
     }
 };
 const warehouseName = computed(() => {
   const warehouse = warehouses.value.find(w => w.id === detailsEnterWarehouse.value.idWarehouse);
   return warehouse ? warehouse.name : 'Không xác định';
 });
+const showNotification = (message, type) => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
 
+  const app = createApp(NotificationComponent, { message, type });
+
+  // eslint-disable-next-line no-unused-vars
+  const instance = app.mount(container);
+  // Tự động xóa thông báo sau 3 giây
+  setTimeout(() => {
+    app.unmount();
+    document.body.removeChild(container);
+  }, 3000);
+};
 </script>
 
 <style scoped>

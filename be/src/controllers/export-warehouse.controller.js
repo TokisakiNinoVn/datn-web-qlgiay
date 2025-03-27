@@ -42,33 +42,17 @@ exports.create = async (req, res, next) => {
             throw new Error('Transaction not found');
         }
 
-        res.status(201).json({ message: 'Warehouse entry created successfully' });
+        res.status(201).json({
+            code: 201,
+            status: 'success',
+            message: 'Warehouse entry created successfully'
+        });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
         console.log(error);
     }
 }
-
-
-// get all warehouse entries - lấy danh sách tất cả các phiếu xuất kho
-// exports.getAll = async (req, res, next) => {
-//     try {
-//         const sql = `
-//             SELECT st.*, u.full_name AS created_by 
-//             FROM stock_transactions st
-//             LEFT JOIN users u ON st.created_by = u.id
-//             WHERE st.transaction_type = 'Xuất kho'
-//         `;
-//         const [warehouses] = await db.pool.execute(sql);
-//         console.log(warehouses);
-
-//         res.status(200).json(warehouses);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//         console.log(error);
-//     }
-// }
 
 exports.getAll = async (req, res, next) => {
     const { role, warehouses } = req.user;
@@ -169,7 +153,11 @@ exports.delete = async (req, res, next) => {
         // Xóa phiếu xuất kho
         await db.pool.execute('DELETE FROM stock_transactions WHERE id = ?', [id]);
 
-        res.status(200).json({ message: 'Warehouse entry deleted successfully' });
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            message: 'Warehouse entry deleted successfully'
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
         console.log(error);
