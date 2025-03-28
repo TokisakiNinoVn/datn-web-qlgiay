@@ -65,7 +65,6 @@ exports.getSimpleInfor = async (req, res, next) => {
     const warehouseId = warehouses[0];
     try {
         if (role === 'admin') {
-
             const [brands] = await db.pool.execute('SELECT id, name FROM brands');
             const [categories] = await db.pool.execute('SELECT id, name FROM categories');
             const [suppliers] = await db.pool.execute('SELECT id, name FROM suppliers');

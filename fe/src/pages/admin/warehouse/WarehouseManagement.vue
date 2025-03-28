@@ -61,14 +61,6 @@
               <i class="fas fa-map-marker-alt"></i>
               <span>{{ warehouse.address }}</span>
             </div>
-            <div v-if="warehouse.manager_info" class="info-item">
-              <i class="fas fa-user"></i>
-              <span>{{ warehouse.manager_info.full_name }}</span>
-            </div>
-            <div v-else class="info-item">
-              <i class="fas fa-user"></i>
-              <span>Chưa có</span>
-            </div>
             <div class="info-item">
               <i class="fas fa-clock"></i>
               <span>{{ formatDate(warehouse.createdAt) }}</span>
@@ -76,12 +68,13 @@
           </div>
           <div class="action-buttons">
             <button 
-              @click.stop="openDetailsGrid(warehouse)" 
-              class="details-btn"
-              title="Xem chi tiết"
-            >
-              <i class="fa-solid fa-eye"></i>
-            </button>
+                  class="details-btn"
+                  title="Xem chi tiết"
+                >
+                  <router-link :to="`/details-warehouse/${warehouse.id}`"  style="color: white;">
+                    <i class="fa-solid fa-eye"></i>
+                  </router-link>
+                </button>
             <button 
               @click.stop="editWarehouse(warehouse)" 
               class="edit-btn"
@@ -107,7 +100,6 @@
             <div class="table-cell">STT</div>
             <div class="table-cell">Tên</div>
             <div class="table-cell">Địa chỉ</div>
-            <div class="table-cell">Quản lý</div>
             <div class="table-cell">Hành động</div>
           </div>
           <div 
@@ -118,15 +110,15 @@
             <div class="table-cell">{{ index + 1 }}</div>
             <div class="table-cell">{{ warehouse.name }}</div>
             <div class="table-cell">{{ warehouse.address }}</div>
-            <div class="table-cell">{{ warehouse.manager_info ? warehouse.manager_info.full_name : 'Chưa có' }}</div>
             <div class="table-cell">
               <div class="action-buttons">
                 <button 
-                  @click.stop="openDetailsTable(warehouse)" 
                   class="details-btn"
                   title="Xem chi tiết"
                 >
-                  <i class="fa-solid fa-eye"></i>
+                  <router-link :to="`/details-warehouse/${warehouse.id}`" style="color: white;">
+                    <i class="fa-solid fa-eye"></i>
+                  </router-link>
                 </button>
                 <button 
                   @click.stop="editWarehouse(warehouse)" 
@@ -148,14 +140,6 @@
         </div>
       </div>
 
-      <!-- Warehouse Details Modal -->
-      <WarehouseDetails 
-        :warehouse="selectedWarehouse" 
-        :visible="isDetailsVisible" 
-        @close="closeDetails" 
-      />
-
-      <!-- Edit Warehouse Modal -->
       <EditWarehouse 
         :warehouse="warehouseToEdit" 
         :visible="isEditVisible" 
@@ -168,9 +152,7 @@
 
 <script setup>
 import { ref, computed, onMounted, createApp } from "vue";
-// import { useRouter } from "vue-router";
 import Navbar from "@/components/NavbarComponent.vue";
-import WarehouseDetails from "./WarehouseDetail.vue";
 import EditWarehouse from "./EditWarehouse.vue";
 import {
   getListWarehouseApi,
@@ -182,9 +164,7 @@ import NotificationComponent from '@/components/NotificationComponent.vue';
 const listWarehouse = ref([]);
 const searchQuery = ref("");
 const viewMode = ref("grid");
-const selectedWarehouse = ref(null);
 const warehouseToEdit = ref(null);
-const isDetailsVisible = ref(false);
 const isEditVisible = ref(false);
 
 onMounted(() => {
@@ -196,7 +176,6 @@ const fetchListWarehouse = async () => {
     const response = await getListWarehouseApi();
     if (response && response.data && response.data.data) {
       listWarehouse.value = response.data.data;
-      // console.log("Warehouse data loaded:", listWarehouse.value);
     } else {
       console.error("Invalid response structure:", response);
       listWarehouse.value = [];
@@ -216,21 +195,6 @@ const filteredWarehouses = computed(() => {
   );
 });
 
-const openDetailsGrid = (warehouse) => {
-  selectedWarehouse.value = warehouse;
-  isDetailsVisible.value = true;
-};
-
-const openDetailsTable = (warehouse) => {
-  selectedWarehouse.value = warehouse;
-  isDetailsVisible.value = true;
-};
-
-const closeDetails = () => {
-  selectedWarehouse.value = null;
-  isDetailsVisible.value = false;
-};
-
 const editWarehouse = (warehouse) => {
   warehouseToEdit.value = { ...warehouse };
   isEditVisible.value = true;
@@ -244,8 +208,6 @@ const closeEdit = () => {
 const updateWarehouse = async (updatedWarehouse) => {
   try {
     await updateWarehouseApi(updatedWarehouse.id, updatedWarehouse);
-    // showNotification("Cập nhật kho hàng thành công!", "success");
-    // alert("Cập nhật kho hàng thành công!");
     await fetchListWarehouse(); // Refresh danh sách
     closeEdit();
   } catch (error) {
@@ -260,11 +222,9 @@ const deleteWarehouse = async (warehouse) => {
     try {
       await deleteWarehouseApi(warehouse.id);
       showNotification("Xóa kho hàng thành công!", "success");
-      // alert("Xóa kho hàng thành công!");
-      await fetchListWarehouse(); // Refresh danh sách
+      await fetchListWarehouse();
     } catch (error) {
       console.error("Error deleting warehouse:", error);
-      // alert("Có lỗi xảy ra khi xóa kho!");
       showNotification("Có lỗi xảy ra khi xóa kho!", "error");
     }
   }
@@ -285,22 +245,19 @@ const showNotification = (message, type) => {
   }, 3000);
 };
 </script>
-
 <style scoped>
 /* General Styles */
 .container {
   display: flex;
   min-height: 100vh;
-  background: #f0f2f5;
+  background: #f4f6f9;
 }
 
 .main-content {
   flex: 1;
-  margin-left: 260px;
-  padding: 30px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  padding: 2rem;
 }
 
 /* Header */
@@ -308,36 +265,41 @@ const showNotification = (message, type) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px 15px;
-  border-bottom: 1px solid #e8ecef;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
 }
 
 .title {
-  color: #2c3e50;
-  font-size: 30px;
+  font-size: 2rem;
+  color: #fff;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  margin: 0;
 }
 
 .stats {
-  color: #7f8c8d;
-  font-size: 16px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 /* Controls */
 .controls {
-  background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .search-add {
   display: flex;
-  gap: 20px;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  flex: 1;
 }
 
 .search-wrapper {
@@ -348,245 +310,218 @@ const showNotification = (message, type) => {
 
 .search-icon {
   position: absolute;
-  left: 12px;
   top: 50%;
+  left: 10px;
   transform: translateY(-50%);
-  color: #95a5a6;
+  color: #6c757d;
 }
 
 .search-input {
-  width: 90%;
-  padding: 12px 12px 12px 40px;
-  border: 1px solid #dfe6e9;
+  width: 80%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 15px;
-  transition: border-color 0.3s;
+  font-size: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .search-input:focus {
-  border-color: #3498db;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
   outline: none;
 }
 
 .add-btn {
-  background: #27ae60;
+  padding: 0.75rem 1.5rem;
+  background: #28a745;
   color: white;
-  padding: 12px 24px;
+  border: none;
   border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 500;
-  transition: background 0.3s;
+  gap: 0.5rem;
+  transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .add-btn:hover {
-  background: #219653;
+  background: #218838;
+  transform: translateY(-2px);
 }
 
 .tool-bar {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
 }
 
-.view-toggle .view-btn {
-  padding: 10px 14px;
-  border: 1px solid #dfe6e9;
-  border-radius: 6px;
-  background: white;
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-btn {
+  padding: 0.75rem;
+  background: #e9ecef;
+  color: #343a40;
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.3s ease, transform 0.2s ease;
 }
 
-.view-toggle .view-btn.active {
-  background: #3498db;
+.view-btn.active,
+.view-btn:hover {
+  background: #007bff;
   color: white;
-  border-color: #3498db;
-}
-
-.view-toggle .view-btn:hover:not(.active) {
-  background: #f5f6fa;
+  transform: translateY(-2px);
 }
 
 /* Grid View */
 .warehouse-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 25px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
 
 .warehouse-card {
-  background: white;
+  background: #fff;
   border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s ease;
-  border: 1px solid #e8ecef;
-  position: relative;
-  overflow: hidden;
-}
-
-.warehouse-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6px;
-  height: 100%;
-  background: #3498db;
-  transition: width 0.3s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .warehouse-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-.warehouse-card:hover::before {
-  width: 100%;
-  opacity: 0.1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .card-header {
-  margin-bottom: 15px;
+  margin-bottom: 1rem;
 }
 
 .warehouse-name {
-  margin: 0;
-  color: #2c3e50;
-  font-size: 22px;
+  font-size: 1.5rem;
+  color: #343a40;
   font-weight: 600;
+  margin: 0;
 }
 
 .warehouse-info {
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .info-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 12px 0;
-  color: #636e72;
-  font-size: 15px;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #6c757d;
+  margin: 0.5rem 0;
 }
 
 .info-item i {
-  color: #3498db;
-  font-size: 16px;
+  color: #007bff;
 }
 
-/* Action Buttons */
 .action-buttons {
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
-.details-btn, .edit-btn, .delete-btn {
-  flex: 1;
-  padding: 10px;
+.details-btn,
+.edit-btn,
+.delete-btn {
+  padding: 0.5rem;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
-  position: relative;
-  z-index: 1;
+  transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .details-btn {
-  background: #3498db;
+  background: #17a2b8;
   color: white;
 }
 
 .details-btn:hover {
-  background: #2980b9;
+  background: #138496;
+  transform: scale(1.05);
 }
 
 .edit-btn {
-  background: #f39c12;
-  color: white;
+  background: #ffc107;
+  color: #343a40;
 }
 
 .edit-btn:hover {
-  background: #e67e22;
+  background: #e0a800;
+  transform: scale(1.05);
 }
 
 .delete-btn {
-  background: #e74c3c;
+  background: #dc3545;
   color: white;
 }
 
 .delete-btn:hover {
-  background: #c0392b;
+  background: #c82333;
+  transform: scale(1.05);
 }
 
-/* Table View */
+/* List View */
 .warehouse-table-wrapper {
-  background: white;
+  background: #fff;
+  padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
-  margin: 20px;
-  overflow-x: auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .table-grid {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr 1fr 150px;
+  grid-template-columns: 1fr 2fr 2fr 1fr;
   gap: 1px;
-  background: #e8ecef;
+  background: #ddd;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .table-header {
   display: contents;
 }
 
+.table-header .table-cell {
+  background: #f8f9fa;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #343a40;
+  padding: 1rem;
+  text-align: left;
+}
+
 .table-row {
   display: contents;
 }
 
-.table-cell {
-  background: white;
-  padding: 15px;
-  color: #636e72;
-  font-size: 14px;
-  border-bottom: 1px solid #e8ecef;
-}
-
-.table-header .table-cell {
-  background: #f8f9fa;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 15px;
-  border-bottom: 2px solid #e8ecef;
+.table-row .table-cell {
+  background: #fff;
+  padding: 1rem;
+  font-size: 1rem;
+  color: #343a40;
+  border-bottom: 1px solid #ddd;
 }
 
 .table-row:hover .table-cell {
-  background: #f8f9fa;
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  background: #f1f3f5;
+  transition: background 0.2s ease;
 }
 
-.table-action-btn {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.3s;
-  width: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-.table-action-btn:hover {
-  background: #2980b9;
+.table-row .action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 </style>

@@ -192,7 +192,13 @@ onMounted(() => {
 });
 
 const exportToExcel = () => {
-  const ws = XLSX.utils.json_to_sheet(statistics.value.stockSummary);
+  console.log(JSON.stringify(statistics.value.stockSummary)); // [{"monthYear":"2025-03","totalImportPrice":"1","totalExportPrice":"1"}]
+  const translatedData = statistics.value.stockSummary.map(item => ({
+    "Tháng năm": item.monthYear,
+    "Tổng nhập kho": item.totalImportPrice,
+    "Tổng xuất kho": item.totalExportPrice,
+  }));
+  const ws = XLSX.utils.json_to_sheet(translatedData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   XLSX.writeFile(wb, "thongke-baocao.xlsx");

@@ -296,10 +296,23 @@ const resetFilters = () => {
 };
 
 const exportToExcel = () => {
-  const ws = XLSX.utils.json_to_sheet(filteredEnterWarehouses.value);
+  const data = filteredEnterWarehouses.value.map((ew, index) => ({
+    "STT": index + 1,
+    "Mã đơn": ew.invoice_code,
+    "Người thực hiện": ew.created_by,
+    "Nhà cung cấp": suppliers.value.find(sup => sup.id === ew.supplier_id)?.name || '',
+    "Kho hàng": warehouses.value.find(wh => wh.id === ew.warehouse_id)?.name || '',
+    "Loại giao dịch": ew.transaction_type,
+    "Trạng thái giao dịch": ew.transaction_status,
+    "Số lượng sản phẩm": ew.total_product,
+    "Tổng tiền (VNĐ)": formatCurrency(ew.total_price),
+    "Ngày tạo": new Date(ew.createdAt).toLocaleDateString('vi-VN'),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Enter Warehouses');
-  XLSX.writeFile(wb, 'enter-warehouses.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Đơn nhập kho');
+  XLSX.writeFile(wb, 'don-nhap-kho.xlsx');
 };
 
 const showNotification = (message, type) => {

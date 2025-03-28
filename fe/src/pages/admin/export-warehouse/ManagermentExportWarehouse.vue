@@ -292,10 +292,21 @@ const resetFilters = () => {
 };
 
 const exportToExcel = () => {
-  const ws = XLSX.utils.json_to_sheet(enterWarehouses.value);
+  const data = enterWarehouses.value.map(item => ({
+    "Mã đơn": item.invoice_code,
+    "Người thực hiện": item.created_by,
+    "Tên khách hàng": item.customer_name,
+    "Số điện thoại khách hàng": item.customer_phone,
+    "Số lượng sản phẩm": item.total_product,
+    "Tổng tiền (VNĐ)": item.total_price,
+    "Trạng thái": item.transaction_status,
+    "Ngày tạo": new Date(item.createdAt).toLocaleDateString("vi-VN"),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  XLSX.writeFile(wb, "export-warehouse.xlsx");
+  XLSX.writeFile(wb, "don-xuat-kho.xlsx");
 };
 
 const showNotification = (message, type) => {

@@ -151,25 +151,19 @@ const fetchCustomers = async () => {
   try {
     const response = await getAllUserSimpleApi();
     const data = Array.isArray(response.data) ? response.data : [];
-    if (roleUser.code === 'admin') {
+    users.value = data;
+    originalCustomers.value = [...data];
+    if ((dataUser.warehouses.length === 0 && roleUser.code === 'admin') || (dataUser.warehouses.length !== 0 && roleUser.code !== 'admin')) {
+      const response = await getAllUserSimpleApi();
+      const data = Array.isArray(response.data) ? response.data : [];
       users.value = data;
       originalCustomers.value = [...data];
-    } else if (dataUser.warehouses.length > 0) {
-      users.value = data.filter(user => 
-        user.warehouses.some(w => dataUser.warehouses.includes(w))
-      );
-      originalCustomers.value = [...users.value];
     } else {
       users.value = [];
-      originalCustomers.value = [];
     }
   } catch (error) {
     console.error('Error fetching users:', error);
-    showNotification(`Có lỗi xảy ra khi lấy danh sách người dùng: ${error}`, 'error');
     users.value = [];
-    originalCustomers.value = [];
-  } finally {
-    isMiniLoading.value = false;
   }
 };
 

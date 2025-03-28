@@ -174,7 +174,6 @@ exports.getListWarehouses = async (req, res, next) => {
     }
 };
 
-
 // lấy name và id của tất cả các kho
 exports.getSimpleAllWarehouses = async (req, res, next) => {
     try {
@@ -187,6 +186,46 @@ exports.getSimpleAllWarehouses = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error in getAllWarehouses function:', error);
+        res.status(500).json({ error: error.message });
+        next(error);
+    }
+}
+
+// lấy thông tin của 1 kho theo id
+exports.getWarehouseById = async (req, res, next) => {
+    const { id } = req.params;
+    try {
+        const [rows] = await db.pool.execute('SELECT * FROM warehouses WHERE id = ?', [id]);
+        if (rows.length === 0) {
+            return next(new AppError(HTTP_STATUS.BAD_REQUEST, 'failed', 'Kho không tồn tại', []), req, res, next);
+        }
+        const warehouse = rows[0];
+
+        // Lấy các thông tin manager và staff của kho từ bảng users và bảng warehouse_user
+        const [listUser] = await db.pool.execute(`
+            SELECT u.id, u.full_name, u.phone, u.address, u.email, u.role_id
+            FROM users AS u
+            INNER JOIN warehouse_user AS wu ON u.id = wu.user_id
+            WHERE wu.warehouse_id = ? `, [id]
+        );
+
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            data: {
+                id: warehouse.id,
+                name: warehouse.name,
+                address: warehouse.address,
+                description: warehouse.description,
+                // manager_id: warehouse.manager_id,
+                createdAt: warehouse.createdAt,
+                updateAt: warehouse.updateAt,
+                listUser: listUser, // Danh sách người dùng trong kho
+            },
+            message: 'Lấy thông tin chi tiết kho thành công',
+        });
+    } catch (error) {
+        console.error('Error in getWarehouseById function:', error);
         res.status(500).json({ error: error.message });
         next(error);
     }

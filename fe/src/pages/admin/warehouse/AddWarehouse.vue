@@ -50,7 +50,7 @@
                     ></textarea>
                 </div>
 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="idManager" class="form-label">
                         <i class="fas fa-user-tie mr-2"></i> Người quản lý
                     </label>
@@ -77,7 +77,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> -->
 
                 <button type="submit" class="submit-btn">
                     <i class="fas fa-plus mr-2"></i> Thêm kho
@@ -87,7 +87,7 @@
     </div>
 
     <!-- Hộp thoại xác nhận -->
-    <transition name="fade">
+    <!-- <transition name="fade">
         <div v-if="confirmDialogVisible" class="modal-overlay">
             <div class="modal">
                 <p>Nhân viên được chọn này sẽ được chuyển thành chức Quản lý kho?</p>
@@ -97,11 +97,12 @@
                 </div>
             </div>
         </div>
-    </transition>
+    </transition> -->
 </template>
 
 <script setup>
-import { onMounted, ref, computed, createApp } from "vue";
+// import { onMounted, ref, computed, createApp } from "vue";
+import { onMounted, ref, createApp } from "vue";
 import Navbar from "@/components/NavbarComponent.vue";
 import { createWarehouseApi } from "@/services/modules/warehouse.api";
 import { getAllUserWithRoleApi } from "@/services/modules/user.api";
@@ -118,10 +119,10 @@ const warehouse = ref({
 });
 
 const managers = ref([]);
-const managerSearch = ref("");
-const showDropdown = ref(false);
-const confirmDialogVisible = ref(false);
-const selectedManager = ref(null);
+// const managerSearch = ref("");
+// const showDropdown = ref(false);
+// const confirmDialogVisible = ref(false);
+// const selectedManager = ref(null);
 
 onMounted(async () => {
     try {
@@ -133,39 +134,39 @@ onMounted(async () => {
     }
 });
 
-const filteredManagers = computed(() => {
-    const query = managerSearch.value.toLowerCase();
-    return managers.value.filter(manager =>
-        manager.full_name.toLowerCase().includes(query)
-    );
-});
+// const filteredManagers = computed(() => {
+//     const query = managerSearch.value.toLowerCase();
+//     return managers.value.filter(manager =>
+//         manager.full_name.toLowerCase().includes(query)
+//     );
+// });
 
-const selectManager = (manager) => {
-    if (manager.role_code === "staff") {
-        selectedManager.value = manager;
-        confirmDialogVisible.value = true;
-    } else {
-        warehouse.value.idManager = manager.id;
-        warehouse.value.roleCodeUserManager = manager.role_code;
-        managerSearch.value = manager.full_name;
-        showDropdown.value = false;
-    }
-};
+// const selectManager = (manager) => {
+//     if (manager.role_code === "staff") {
+//         selectedManager.value = manager;
+//         confirmDialogVisible.value = true;
+//     } else {
+//         warehouse.value.idManager = manager.id;
+//         warehouse.value.roleCodeUserManager = manager.role_code;
+//         managerSearch.value = manager.full_name;
+//         showDropdown.value = false;
+//     }
+// };
 
-const confirmManagerSelection = () => {
-    if (selectedManager.value) {
-        warehouse.value.idManager = selectedManager.value.id;
-        warehouse.value.roleCodeUserManager = selectedManager.value.role_code;
-        managerSearch.value = selectedManager.value.full_name;
-    }
-    confirmDialogVisible.value = false;
-};
+// const confirmManagerSelection = () => {
+//     if (selectedManager.value) {
+//         warehouse.value.idManager = selectedManager.value.id;
+//         warehouse.value.roleCodeUserManager = selectedManager.value.role_code;
+//         managerSearch.value = selectedManager.value.full_name;
+//     }
+//     confirmDialogVisible.value = false;
+// };
 
-const hideDropdownWithDelay = () => {
-    setTimeout(() => {
-        showDropdown.value = false;
-    }, 200);
-};
+// const hideDropdownWithDelay = () => {
+//     setTimeout(() => {
+//         showDropdown.value = false;
+//     }, 200);
+// };
 
 const submitRoom = async () => {
   try {
@@ -173,7 +174,7 @@ const submitRoom = async () => {
       name: warehouse.value.name?.trim(),
       address: warehouse.value.address?.trim(),
       description: warehouse.value.description?.trim() || null,
-      idManager: warehouse.value.idManager,
+    //   idManager: warehouse.value.idManager,
     };
 
     const response = await createWarehouseApi(payload);

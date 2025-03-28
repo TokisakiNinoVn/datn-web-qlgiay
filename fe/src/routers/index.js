@@ -12,6 +12,7 @@ import InforPage from '@/pages/InforPage.vue';
 //Warehouse
 import WarehouseManagement from '@/pages/admin/warehouse/WarehouseManagement.vue';
 import AddWarehouse from '@/pages/admin/warehouse/AddWarehouse.vue';
+import DetailWarehouse from '@/pages/admin/warehouse/DetailWarehouse.vue';
 
 //Supplier
 import ManagermentSupplier from '@/pages/admin/supplier/ManagermentSupplier.vue';
@@ -49,6 +50,7 @@ const routes = [
   
   { path: '/warehouse-management', component: WarehouseManagement },
   { path: '/warehouse-management/add', component: AddWarehouse },
+  { path: '/details-warehouse/:id', component: DetailWarehouse },
 
   { path: '/supplier-management', component: ManagermentSupplier },
   

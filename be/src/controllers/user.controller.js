@@ -10,7 +10,7 @@ exports.add = async (req, res, next) => {
     // Kiểm tra xem số điện thoại đã tồn tại
     const phoneCheck = `SELECT phone FROM Users WHERE phone = ?`;
     const [phoneResult] = await db.pool.execute(phoneCheck, [phone]);
-    console.log('phoneResult:', phoneResult);
+    // console.log('phoneResult:', phoneResult);
 
     if (phoneResult.length > 0) {
       return res.status(200).json({
@@ -57,7 +57,8 @@ exports.add = async (req, res, next) => {
       //Lấy thông tin manager_id của kho
       const sqliWarehouse = `SELECT manager_id FROM warehouses WHERE id = ?`;
       const [manager] = await db.pool.execute(sqliWarehouse, [warehouse]);
-      if (manager === null || manager === undefined) {
+      console.log('manager:', manager[0].manager_id);
+      if (manager[0].manager_id === null || manager[0].manager_id === undefined) {
         const sqlWarehouse = `UPDATE warehouses SET manager_id = ? WHERE id = ?`;
         await db.pool.execute(sqlWarehouse, [result.insertId, warehouse]);
       }
@@ -221,8 +222,6 @@ exports.updateUser = async (req, res, next) => {
   const { email = "", full_name = "", phone = "", address = "", gender = "", note = "", role_code = "", warehouse_id, role } = req.body;
   const roleUser = req.user.role;
 
-  // console.log('roleUser:', roleUser);
-
   // Kiểm tra ID hợp lệ
   const userId = parseInt(id, 10);
   if (isNaN(userId)) {
@@ -233,8 +232,30 @@ exports.updateUser = async (req, res, next) => {
 
   if (role_code === 'admin') {
     roleId = 1;
+    // Xóa người dùng khỏi bảng warehouse_user nếu là admin
+    const sqlDeleteWarehouseUser = `DELETE FROM warehouse_user WHERE user_id = ?`;
+
+    // kiểm tra người dùng có id trùng với manager_id ở bảng warehouse_user không
+    // nếu đúng thì cập nhật lại manager_id ở bảng warehouse_user về null
+    const sqlCheckManager = `SELECT * FROM warehouse_user WHERE user_id = ? `;
+    const [checkManager] = await db.pool.execute(sqlCheckManager, [userId]);
+    if (checkManager.length > 0) {
+      const sqlUpdateManager = `UPDATE warehouses SET manager_id = NULL WHERE manager_id = ?`;
+      await db.pool.execute(sqlUpdateManager, [userId]);
+    }
+
+    await db.pool.execute(sqlDeleteWarehouseUser, [userId]);
   } else if (role_code === 'manager') {
     roleId = 2;
+
+    // Kiểm tra xem người dùng có id trùng với manager_id ở bảng warehouses không
+    // nếu null hoặc undifine thì cập nhật lại manager_id ở bảng warehouses bằng id của người dùng
+    const sqlCheckManager = `SELECT * FROM warehouses WHERE manager_id = ?`;
+    const [checkManager] = await db.pool.execute(sqlCheckManager, [userId]);
+    if (checkManager.length === 0) {
+      const sqlUpdateManager = `UPDATE warehouses SET manager_id = ? WHERE id = ?`;
+      await db.pool.execute(sqlUpdateManager, [userId, warehouse_id]);
+    }
   } else {
     roleId = 3;
   }
@@ -242,9 +263,21 @@ exports.updateUser = async (req, res, next) => {
   try {
     const sql = `UPDATE users SET email = ?, full_name = ?, phone = ?, address = ?, gender = ?, note = ?, role_id = ? WHERE id = ?`;
     await db.pool.execute(sql, [email, full_name, phone, address, gender, note, roleId, userId]);
-    //Cập nhật warehouse_user
-    const sqlWarehouseUser = `UPDATE warehouse_user SET role_id = ? WHERE user_id = ? AND warehouse_id = ?`;
-    await db.pool.execute(sqlWarehouseUser, [roleId, userId, warehouse_id]);
+
+    // Kiểm tra xem người dùng có id trùng với user_id ở bảng warehouse_user không
+    const sqlCheckWarehouseUser = `SELECT * FROM warehouse_user WHERE user_id = ?`;
+    const [checkWarehouseUser] = await db.pool.execute(sqlCheckWarehouseUser, [userId]);
+    
+    if (checkWarehouseUser.length === 0 && role_code !== 'admin') {
+      // Nếu không có thì thêm mới vào bảng warehouse_user
+      const sqlInsertWarehouseUser = `INSERT INTO warehouse_user (warehouse_id, user_id, role_id) VALUES (?, ?, ?)`;
+      await db.pool.execute(sqlInsertWarehouseUser, [warehouse_id, userId, roleId]);
+    } else {
+      // Nếu có thì cập nhật lại warehouse_id và role_id
+      const sqlUpdateWarehouseUser = `UPDATE warehouse_user SET warehouse_id = ?, role_id = ? WHERE user_id = ?`;
+      await db.pool.execute(sqlUpdateWarehouseUser, [warehouse_id, roleId, userId]);
+    }
+
     res.json({
       code: 200,
       status: "success",
